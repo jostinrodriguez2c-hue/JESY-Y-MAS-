@@ -235,8 +235,31 @@ main.section::before {
   font: 800 clamp(23px, 3vw, 30px)/1.2 Montserrat, Inter, sans-serif;
 }
 
+.management-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.management-toolbar .btn {
+  min-height: 42px;
+  padding-inline: 16px;
+}
+
+.management-toolbar-delete {
+  border: 1px solid #efc5bf;
+  background: rgba(255, 255, 255, .92);
+  color: #a43d32;
+}
+
+.management-toolbar-delete:hover {
+  background: #fff0ee;
+}
+
 .management-table {
-  min-width: 720px;
+  min-width: 620px;
 }
 
 .management-table td {
@@ -281,6 +304,41 @@ main.section::before {
 
 .content-dialog {
   width: min(590px, calc(100% - 32px));
+}
+
+.content-selection-dialog {
+  width: min(460px, calc(100% - 32px));
+}
+
+.content-selection-dialog .decision-dialog-card > .content-field {
+  margin-bottom: 8px;
+}
+
+.content-selection-dialog select {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 36px 9px 11px;
+  border: 1px solid #d5dee7;
+  border-radius: 8px;
+  appearance: none;
+  outline: 0;
+  background-color: rgba(255, 255, 255, .95);
+  background-image: linear-gradient(45deg, transparent 50%, #455668 50%), linear-gradient(135deg, #455668 50%, transparent 50%);
+  background-position: calc(100% - 16px) 18px, calc(100% - 11px) 18px;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+  color: #172b42;
+  font: 400 12px Inter, sans-serif;
+}
+
+.content-selection-dialog select:focus {
+  border-color: #e58a32;
+  box-shadow: 0 0 0 3px rgba(229, 138, 50, .14);
+}
+
+.content-selection-dialog .decision-confirm-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
 }
 
 .content-dialog .decision-dialog-card {
@@ -465,6 +523,44 @@ main.section::before {
   border-top: 1px solid #e5eaf0;
   color: #65768a;
   font-size: 11px;
+}
+
+.project-photo-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 4px;
+  overflow: hidden;
+}
+
+.project-photo-gallery .catalog-image {
+  height: 145px;
+}
+
+.project-specifications {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+  margin: 0 20px 18px;
+  padding-top: 13px;
+  border-top: 1px solid #e5eaf0;
+}
+
+.project-specifications > div {
+  min-width: 0;
+}
+
+.project-specifications dt {
+  color: #65768a;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.project-specifications dd {
+  margin: 2px 0 0;
+  color: #243a50;
+  font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .catalog-image {

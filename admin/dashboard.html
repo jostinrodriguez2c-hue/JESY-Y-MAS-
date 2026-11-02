@@ -24,24 +24,32 @@
       <section class="management-section" aria-labelledby="manage-projects-heading">
         <div class="requests-heading">
           <div><p class="eyebrow">PORTAFOLIO</p><h2 id="manage-projects-heading">Administrar proyectos</h2></div>
-          <button id="add-project" class="btn btn-orange" type="button">Agregar proyecto</button>
+          <div class="management-toolbar">
+            <button id="add-project" class="btn btn-orange" type="button">Agregar proyecto</button>
+            <button id="edit-project" class="btn btn-dark" type="button">Editar proyecto</button>
+            <button id="delete-project" class="btn btn-dark management-toolbar-delete" type="button">Eliminar proyecto</button>
+          </div>
         </div>
         <div class="requests-table-wrap">
           <table class="requests-table management-table">
-            <thead><tr><th>Proyecto</th><th>Ubicación</th><th>Estado</th><th>Visibilidad</th><th>Acciones</th></tr></thead>
-            <tbody id="projects-table"><tr><td colspan="5">Cargando proyectos...</td></tr></tbody>
+            <thead><tr><th>Proyecto</th><th>Ubicación</th><th>Estado</th><th>Visibilidad</th></tr></thead>
+            <tbody id="projects-table"><tr><td colspan="4">Cargando proyectos...</td></tr></tbody>
           </table>
         </div>
       </section>
       <section class="management-section" aria-labelledby="manage-services-heading">
         <div class="requests-heading">
           <div><p class="eyebrow">CATÁLOGO</p><h2 id="manage-services-heading">Administrar servicios</h2></div>
-          <button id="add-service" class="btn btn-orange" type="button">Agregar servicio</button>
+          <div class="management-toolbar">
+            <button id="add-service" class="btn btn-orange" type="button">Agregar servicio</button>
+            <button id="edit-service" class="btn btn-dark" type="button">Editar servicio</button>
+            <button id="delete-service" class="btn btn-dark management-toolbar-delete" type="button">Eliminar servicio</button>
+          </div>
         </div>
         <div class="requests-table-wrap">
           <table class="requests-table management-table">
-            <thead><tr><th>Servicio</th><th>Descripción</th><th>Visibilidad</th><th>Acciones</th></tr></thead>
-            <tbody id="services-table"><tr><td colspan="4">Cargando servicios...</td></tr></tbody>
+            <thead><tr><th>Servicio</th><th>Descripción</th><th>Visibilidad</th></tr></thead>
+            <tbody id="services-table"><tr><td colspan="3">Cargando servicios...</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -73,6 +81,21 @@
       <div class="decision-dialog-actions">
         <button id="decision-cancel" class="decision-cancel-button" type="button">Cancelar</button>
         <button id="decision-confirm" class="decision-confirm-button" type="submit">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="content-selection-dialog" class="decision-dialog content-selection-dialog" aria-labelledby="content-selection-title">
+    <form id="content-selection-form" class="decision-dialog-card" novalidate>
+      <div class="decision-dialog-icon" aria-hidden="true">⌕</div>
+      <p class="eyebrow">GESTIÓN DEL SITIO</p>
+      <h2 id="content-selection-title">Seleccionar contenido</h2>
+      <p id="content-selection-description" class="decision-dialog-copy">Elige un elemento de la lista.</p>
+      <label class="content-field" for="content-selection">Contenido</label>
+      <select id="content-selection" name="content_id" required></select>
+      <p id="content-selection-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="content-selection-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="content-selection-confirm" class="decision-confirm-button" type="submit">Continuar</button>
       </div>
     </form>
   </dialog>

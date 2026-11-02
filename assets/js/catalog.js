@@ -84,27 +84,56 @@ async function loadProjects(container) {
   data.forEach((project) => {
     const card = document.createElement("article");
     card.className = "project-card service-card";
-    const imageUrl = project.image_urls?.[0];
-    if (imageUrl) {
-      const image = document.createElement("img");
-      image.className = "catalog-image";
-      image.src = imageUrl;
-      image.alt = project.name;
-      image.loading = "lazy";
-      card.append(image);
+    const imageUrls = project.image_urls || [];
+    if (imageUrls.length) {
+      const gallery = document.createElement("div");
+      gallery.className = "project-photo-gallery";
+      imageUrls.forEach((imageUrl, index) => {
+        const image = document.createElement("img");
+        image.className = "catalog-image";
+        image.src = imageUrl;
+        image.alt = `${project.name} · fotografía ${index + 1}`;
+        image.loading = "lazy";
+        gallery.append(image);
+      });
+      card.append(gallery);
     }
     const heading = document.createElement("h2");
     heading.textContent = project.name;
     const description = document.createElement("p");
     description.textContent = project.description || "";
-    const metadata = document.createElement("p");
-    metadata.className = "catalog-meta";
-    metadata.textContent = [project.service_type, project.location, project.status, project.completed_on]
-      .filter(Boolean)
-      .join(" · ");
-    card.append(heading, description, metadata);
+    const specifications = document.createElement("dl");
+    specifications.className = "project-specifications";
+    const projectStatus = formatProjectStatus(project.status);
+    [
+      ["Tipo de trabajo", project.service_type],
+      ["Ubicación", project.location],
+      ["Estado", projectStatus],
+      ["Fecha", project.completed_on ? new Date(`${project.completed_on}T00:00:00`).toLocaleDateString("es-PA", { year: "numeric", month: "long" }) : ""]
+    ].filter(([, value]) => value).forEach(([label, value]) => {
+      const item = document.createElement("div");
+      const term = document.createElement("dt");
+      term.textContent = label;
+      const detail = document.createElement("dd");
+      detail.textContent = value;
+      item.append(term, detail);
+      specifications.append(item);
+    });
+    card.append(heading, description);
+    if (specifications.childElementCount) card.append(specifications);
     container.append(card);
   });
+}
+
+function formatProjectStatus(status) {
+  const labels = {
+    planificacion: "Planificación",
+    en_proceso: "En proceso",
+    pausado: "Pausado",
+    completado: "Completado",
+    cancelado: "Cancelado"
+  };
+  return labels[status] || status || "";
 }
 
 function showCatalogMessage(container, message) {

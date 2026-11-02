@@ -24,6 +24,13 @@ const contentDialogTitle = document.querySelector("#content-dialog-title");
 const contentFields = document.querySelector("#content-fields");
 const contentError = document.querySelector("#content-error");
 const contentSave = document.querySelector("#content-save");
+const contentSelectionDialog = document.querySelector("#content-selection-dialog");
+const contentSelectionForm = document.querySelector("#content-selection-form");
+const contentSelectionTitle = document.querySelector("#content-selection-title");
+const contentSelectionDescription = document.querySelector("#content-selection-description");
+const contentSelection = document.querySelector("#content-selection");
+const contentSelectionError = document.querySelector("#content-selection-error");
+const contentSelectionConfirm = document.querySelector("#content-selection-confirm");
 const deleteDialog = document.querySelector("#delete-dialog");
 const deleteDescription = document.querySelector("#delete-description");
 const deleteError = document.querySelector("#delete-error");
@@ -32,6 +39,9 @@ let pendingDecision = null;
 let editingContent = null;
 let deletingContent = null;
 let contentImagePreviewUrl = "";
+let managedProjects = [];
+let managedServices = [];
+let pendingContentSelection = null;
 
 const projectLocations = [
   "Panamá",
@@ -119,13 +129,15 @@ async function loadContentManagement() {
     });
     managementStatus.textContent = "No se pudieron cargar proyectos o servicios. Revisa las políticas RLS y columnas de Supabase.";
     managementStatus.classList.add("error");
-    if (projects.error) projectsTable.replaceChildren(makeTableMessage("Error al cargar proyectos.", 5));
-    if (services.error) servicesTable.replaceChildren(makeTableMessage("Error al cargar servicios.", 4));
+    if (projects.error) projectsTable.replaceChildren(makeTableMessage("Error al cargar proyectos.", 4));
+    if (services.error) servicesTable.replaceChildren(makeTableMessage("Error al cargar servicios.", 3));
     return;
   }
 
   renderManagedProjects(projects.data);
   renderManagedServices(services.data);
+  managedProjects = projects.data;
+  managedServices = services.data;
   managementStatus.textContent = "";
 }
 
@@ -141,7 +153,7 @@ function makeTableMessage(message, columnCount) {
 function renderManagedProjects(projects) {
   projectsTable.replaceChildren();
   if (!projects.length) {
-    projectsTable.append(makeTableMessage("Aún no hay proyectos. Usa “Agregar proyecto” para crear el primero.", 5));
+    projectsTable.append(makeTableMessage("Aún no hay proyectos. Usa “Agregar proyecto” para crear el primero.", 4));
     return;
   }
 
@@ -149,15 +161,8 @@ function renderManagedProjects(projects) {
     const row = document.createElement("tr");
     appendCell(row, project.name);
     appendCell(row, project.location);
-    appendCell(row, project.status);
+    appendCell(row, formatProjectStatus(project.status));
     appendCell(row, project.published ? "Publicado" : "Borrador");
-    const actions = document.createElement("td");
-    actions.className = "management-actions";
-    actions.append(
-      makeContentAction("Editar", () => openContentDialog("project", project)),
-      makeContentAction("Eliminar", () => openDeleteDialog("project", project))
-    );
-    row.append(actions);
     projectsTable.append(row);
   });
 }
@@ -165,7 +170,7 @@ function renderManagedProjects(projects) {
 function renderManagedServices(services) {
   servicesTable.replaceChildren();
   if (!services.length) {
-    servicesTable.append(makeTableMessage("Aún no hay servicios. Usa “Agregar servicio” para crear el primero.", 4));
+    servicesTable.append(makeTableMessage("Aún no hay servicios. Usa “Agregar servicio” para crear el primero.", 3));
     return;
   }
 
@@ -174,24 +179,39 @@ function renderManagedServices(services) {
     appendCell(row, service.name);
     appendCell(row, service.description);
     appendCell(row, service.active ? "Publicado" : "Oculto");
-    const actions = document.createElement("td");
-    actions.className = "management-actions";
-    actions.append(
-      makeContentAction("Editar", () => openContentDialog("service", service)),
-      makeContentAction("Eliminar", () => openDeleteDialog("service", service))
-    );
-    row.append(actions);
     servicesTable.append(row);
   });
 }
 
-function makeContentAction(label, action) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `management-action ${label === "Eliminar" ? "management-delete" : ""}`;
-  button.textContent = label;
-  button.addEventListener("click", action);
-  return button;
+function formatProjectStatus(value) {
+  const status = projectStatuses.find((option) => option.value === value);
+  return status?.label || value || "—";
+}
+
+function openContentSelection(type, action) {
+  const items = type === "project" ? managedProjects : managedServices;
+  const singular = type === "project" ? "proyecto" : "servicio";
+  contentSelection.replaceChildren();
+  contentSelectionError.textContent = "";
+  pendingContentSelection = { type, action };
+  contentSelectionTitle.textContent = `${action === "edit" ? "Editar" : "Eliminar"} ${singular}`;
+  contentSelectionDescription.textContent = items.length
+    ? `Selecciona cuál ${singular} deseas ${action === "edit" ? "editar" : "eliminar"}.`
+    : `Todavía no hay ${type === "project" ? "proyectos" : "servicios"} para ${action === "edit" ? "editar" : "eliminar"}.`;
+  contentSelectionConfirm.textContent = action === "edit" ? "Continuar para editar" : "Continuar para eliminar";
+  contentSelectionConfirm.disabled = !items.length;
+
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = items.length ? `Selecciona un ${singular}` : "No hay elementos disponibles";
+  contentSelection.append(placeholder);
+  items.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.name;
+    contentSelection.append(option);
+  });
+  contentSelectionDialog.showModal();
 }
 
 function addContentField({ name, label, value = "", type = "text", required = false, multiline = false, help = "", compact = false }) {
@@ -544,8 +564,36 @@ document.querySelector("#delete-form")?.addEventListener("submit", async (event)
 
 document.querySelector("#add-project")?.addEventListener("click", () => openContentDialog("project"));
 document.querySelector("#add-service")?.addEventListener("click", () => openContentDialog("service"));
+document.querySelector("#edit-project")?.addEventListener("click", () => openContentSelection("project", "edit"));
+document.querySelector("#delete-project")?.addEventListener("click", () => openContentSelection("project", "delete"));
+document.querySelector("#edit-service")?.addEventListener("click", () => openContentSelection("service", "edit"));
+document.querySelector("#delete-service")?.addEventListener("click", () => openContentSelection("service", "delete"));
 document.querySelector("#content-cancel")?.addEventListener("click", () => contentDialog.close());
 document.querySelector("#delete-cancel")?.addEventListener("click", () => deleteDialog.close());
+document.querySelector("#content-selection-cancel")?.addEventListener("click", () => contentSelectionDialog.close());
+contentSelectionForm?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!pendingContentSelection || !contentSelection.value) {
+    contentSelectionError.textContent = "Selecciona un elemento de la lista.";
+    return;
+  }
+  const items = pendingContentSelection.type === "project" ? managedProjects : managedServices;
+  const selectedItem = items.find((item) => item.id === contentSelection.value);
+  if (!selectedItem) {
+    contentSelectionError.textContent = "No se encontró el elemento seleccionado. Actualiza la lista e inténtalo de nuevo.";
+    return;
+  }
+  const { type, action } = pendingContentSelection;
+  contentSelectionDialog.close();
+  if (action === "edit") openContentDialog(type, selectedItem);
+  else openDeleteDialog(type, selectedItem);
+});
+contentSelectionDialog?.addEventListener("close", () => {
+  contentSelectionForm.reset();
+  contentSelectionError.textContent = "";
+  contentSelectionConfirm.disabled = false;
+  pendingContentSelection = null;
+});
 contentDialog?.addEventListener("close", () => {
   if (contentImagePreviewUrl) URL.revokeObjectURL(contentImagePreviewUrl);
   contentImagePreviewUrl = "";
