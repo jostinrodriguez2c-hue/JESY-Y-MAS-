@@ -845,3 +845,428 @@ body.admin-body .content-selection-row .decision-confirm-button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+:root {
+  color-scheme: dark;
+  --navy: #111d2b;
+  --navy2: #1d3046;
+  --ink: #e6edf5;
+  --muted: #a4b1c1;
+  --line: #354456;
+  --paper: #182433;
+  --white: #202d3d;
+  --shadow: 0 12px 32px rgba(0, 0, 0, .28);
+}
+
+body {
+  color: var(--ink);
+  background-color: #111923;
+  background-image:
+    linear-gradient(rgba(8, 14, 23, .84), rgba(8, 14, 23, .9)),
+    url("../images/panama-city.png");
+}
+
+body.admin-body {
+  background-image:
+    linear-gradient(rgba(8, 14, 23, .88), rgba(8, 14, 23, .94)),
+    url("../images/panama-city.png");
+}
+
+main.section::before {
+  border-color: rgba(148, 166, 188, .18);
+  background: rgba(20, 30, 43, .84);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .3);
+}
+
+.site-header,
+.simple-header,
+.main-nav {
+  background-color: rgba(21, 32, 46, .96);
+}
+
+.site-header,
+.simple-header {
+  border-color: var(--line);
+}
+
+.menu-toggle {
+  color: var(--ink);
+}
+
+.about-section,
+.quote-band {
+  background-color: rgba(24, 36, 51, .88);
+}
+
+.service-card,
+.form-card,
+.stat-card,
+.requests-table-wrap,
+.contact-list,
+.form-layout > div:first-child,
+.catalog-grid > .catalog-message,
+.service-grid > .catalog-message {
+  border-color: var(--line);
+  background-color: rgba(28, 41, 57, .94);
+  color: var(--ink);
+  backdrop-filter: blur(5px);
+}
+
+.narrow h1,
+.narrow h2,
+.form-layout h1,
+.management-section h2,
+.catalog-grid .project-card h2 {
+  color: var(--ink);
+  text-shadow: none;
+}
+
+.narrow p,
+.form-layout > div:first-child > p:not(.eyebrow),
+.form-layout > div > p:not(.eyebrow),
+.catalog-message,
+.catalog-intro {
+  color: var(--muted);
+}
+
+.service-icon {
+  background: rgba(229, 138, 50, .16);
+}
+
+.notice {
+  border-color: #70502d;
+  background: #302719;
+  color: #f0c98e;
+}
+
+.form-card input,
+.form-card select,
+.form-card textarea,
+.decision-dialog-card input,
+.content-field input,
+.content-field select,
+.content-field textarea,
+.content-selection-dialog select {
+  border-color: #45566b;
+  background-color: #121d2a;
+  color: var(--ink);
+  color-scheme: dark;
+}
+
+.content-field select,
+.content-selection-dialog select {
+  background-image:
+    linear-gradient(45deg, transparent 50%, #b7c4d2 50%),
+    linear-gradient(135deg, #b7c4d2 50%, transparent 50%);
+}
+
+.form-card input::placeholder,
+.form-card textarea::placeholder,
+.content-field input::placeholder,
+.content-field textarea::placeholder {
+  color: #8796a8;
+}
+
+.form-card input:focus,
+.form-card select:focus,
+.form-card textarea:focus,
+.content-field input:focus,
+.content-field select:focus,
+.content-field textarea:focus,
+.content-selection-dialog select:focus {
+  border-color: var(--orange);
+}
+
+.decision-dialog {
+  color: var(--ink);
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .55);
+}
+
+.decision-dialog-card {
+  border-color: #45566a;
+  background:
+    linear-gradient(rgba(25, 37, 52, .97), rgba(20, 31, 45, .98)),
+    url("../images/panama-city.png") center / cover;
+}
+
+.decision-dialog-card h2,
+.decision-passcode-label,
+.management-section h2 {
+  color: var(--ink);
+}
+
+.decision-dialog-copy,
+.content-field small,
+.content-file-name,
+.request-details-item h3 {
+  color: var(--muted);
+}
+
+.decision-cancel-button {
+  border-color: #45566a !important;
+  background: #263547;
+  color: #d7e0ea;
+}
+
+.management-toolbar-delete,
+.decision-button,
+.request-details-trigger,
+.management-action {
+  border-color: #45566a;
+  background: #263547;
+  color: #d7e0ea;
+}
+
+body.admin-body .management-toolbar-delete {
+  border-color: #754a48;
+  background: #382727;
+  color: #f0aaa1;
+}
+
+body.admin-body .management-toolbar-delete:hover {
+  background: #482d2b;
+}
+
+.request-filter-menu {
+  border-color: var(--line) !important;
+  background: #1d2b3b !important;
+}
+
+.request-filter-menu button {
+  color: var(--ink) !important;
+}
+
+.request-filter-menu button:hover,
+.request-filter-menu button.is-selected {
+  background: #2b3b4e !important;
+}
+
+.request-filter-menu button span,
+.request-status {
+  background: #35465a;
+  color: #e2eaf3;
+}
+
+.requests-table th {
+  background: #253447;
+  color: #d8e2ed;
+}
+
+.requests-table th,
+.requests-table td,
+.project-specifications,
+.catalog-grid .project-card .catalog-meta {
+  border-color: var(--line);
+}
+
+.requests-table td,
+.requests-table a,
+.project-specifications dt {
+  color: var(--muted);
+}
+
+.requests-table td strong,
+.requests-table summary,
+.project-specifications dd,
+.request-details-item p,
+.request-details-attachments ul,
+.content-field,
+.content-checkbox {
+  color: var(--ink);
+}
+
+.request-details-item {
+  border-color: var(--line);
+  background: #202e3f;
+}
+
+body.admin-body .request-details-trigger {
+  border-color: #45566a;
+  background: #263547;
+  color: #d7e0ea;
+}
+
+.decision-button.decision-hide,
+.decision-button.decision-hide:hover:not(:disabled),
+.management-delete,
+.decision-hide {
+  border-color: #754a48;
+  background: #382727;
+  color: #f0aaa1;
+}
+
+.management-delete:hover,
+.decision-hide:hover:not(:disabled) {
+  border-color: #a65c53;
+  background: #482d2b;
+  color: #ffc0b7;
+}
+
+body.admin-body .hide-request-dialog-icon {
+  background: #452b2b;
+  color: #f0aaa1;
+}
+
+body.admin-body .request-details-icon {
+  background: #263a50;
+  color: #b7d3ef;
+}
+
+.request-details-trigger:hover,
+.management-action:hover {
+  color: #f0a552;
+}
+
+.content-field input[type="file"]::file-selector-button {
+  background: #30455d;
+}
+
+.content-image-preview {
+  border-color: var(--line);
+}
+
+.catalog-image {
+  background: #263547;
+}
+
+.status-aceptado {
+  background: #1d3d31;
+  color: #9ed5b0;
+}
+
+.status-rechazado {
+  background: #452b2b;
+  color: #f0aaa1;
+}
+
+.login-wrap {
+  width: min(1180px, calc(100% - 40px));
+  margin: 5vh auto;
+}
+
+.login-wrap > .brand {
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.login-panels {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.login-card {
+  align-content: start;
+  gap: 12px;
+  padding: 24px;
+}
+
+.login-card h1 {
+  margin: 0;
+  font: 800 24px/1.2 Montserrat, Inter, sans-serif;
+}
+
+.login-description {
+  min-height: 42px;
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.form-status.error {
+  color: #f0aaa1;
+}
+
+.login-inline-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.login-card .btn {
+  width: 100%;
+  margin-top: 6px;
+}
+
+.login-card > a {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.activation-card {
+  margin-top: 16px;
+  padding: 18px 24px;
+}
+
+.activation-card summary {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.activation-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.activation-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.activation-form .login-description {
+  min-height: 0;
+  margin: 2px 0;
+}
+
+.access-request-actions {
+  min-width: 280px;
+  white-space: nowrap;
+}
+
+.access-request-actions .btn {
+  padding: 9px 11px;
+  font-size: 11px;
+}
+
+.access-request-actions .btn + .btn {
+  margin-left: 6px;
+}
+
+.access-code-value {
+  font-family: monospace !important;
+  font-size: 18px !important;
+  letter-spacing: .12em;
+}
+
+@media (max-width: 700px) {
+  .login-panels,
+  .login-inline-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .login-wrap {
+    margin: 24px auto;
+  }
+
+  .login-card {
+    padding: 20px;
+  }
+
+  .login-description {
+    min-height: 0;
+  }
+
+  .activation-card {
+    padding: 16px 20px;
+  }
+
+  .access-request-actions {
+    min-width: 240px;
+  }
+}

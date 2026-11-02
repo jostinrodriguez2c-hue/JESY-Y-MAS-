@@ -1,1 +1,56 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso administrativo | JESY Y MAS</title><link rel="stylesheet" href="../assets/css/styles.css"></head><body class="admin-body"><main class="login-wrap"><a class="brand" href="../index.html"><span class="brand-mark">J<span>+</span></span><span class="brand-copy"><strong>JESY Y MAS</strong><small>ADMINISTRACIÓN</small></span></a><form id="login-form" class="form-card"><p class="eyebrow">ÁREA PRIVADA</p><h1>Iniciar sesión</h1><label>Correo electrónico<input type="email" name="email" required autocomplete="username"></label><label>Contraseña<input type="password" name="password" required autocomplete="current-password"></label><button class="btn btn-orange" type="submit">Entrar al sistema</button><p id="login-status" class="form-status" role="status"></p><a href="../index.html">← Volver al sitio web</a></form></main><script type="module" src="../assets/js/login.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Acceso administrativo | JESY Y MAS</title>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body class="admin-body">
+  <main class="login-wrap">
+    <a class="brand" href="../index.html">
+      <span class="brand-mark">J<span>+</span></span>
+      <span class="brand-copy"><strong>JESY Y MAS</strong><small>ADMINISTRACIÓN</small></span>
+    </a>
+    <div class="login-panels">
+      <form id="login-form" class="form-card login-card">
+        <p class="eyebrow">ÁREA PRIVADA</p>
+        <h1>Iniciar sesión</h1>
+        <p class="login-description">Trabajadores aprobados y administradores ingresan desde este mismo acceso.</p>
+        <div class="login-inline-fields">
+          <label>Correo<input type="email" name="email" required autocomplete="username"></label>
+          <label>Contraseña<input type="password" name="password" required autocomplete="current-password"></label>
+        </div>
+        <button class="btn btn-orange" type="submit">Entrar</button>
+        <p id="login-status" class="form-status" role="status" aria-live="polite"></p>
+        <a href="../index.html">← Volver al sitio web</a>
+      </form>
+
+      <form id="access-request-form" class="form-card login-card">
+        <p class="eyebrow">NUEVO PERSONAL</p>
+        <h1>Solicitar acceso</h1>
+        <p class="login-description">Escribe tu nombre y correo. Nunca pediremos ni mostraremos tu contraseña en esta solicitud.</p>
+        <div class="login-inline-fields">
+          <label>Nombre completo<input type="text" name="full_name" required minlength="2" maxlength="120" autocomplete="name"></label>
+          <label>Tu correo electrónico<input type="email" name="email" required maxlength="160" autocomplete="email"></label>
+        </div>
+        <button class="btn btn-dark" type="submit">Enviar solicitud</button>
+        <p id="access-request-status" class="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </div>
+
+    <details class="form-card activation-card">
+      <summary>¿Tienes un código? Activar acceso</summary>
+      <form id="activation-form" class="activation-form">
+        <label>Correo aprobado<input type="email" name="email" required maxlength="160" autocomplete="email"></label>
+        <label>Código temporal<input type="text" name="activation_code" required minlength="32" maxlength="32" pattern="[a-fA-F0-9]{32}" autocomplete="one-time-code" spellcheck="false"></label>
+        <label>Crea tu contraseña<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
+        <p class="login-description">El código lo entrega personalmente un superadministrador. Vence en 24 horas y solo se puede usar una vez. Tu contraseña debe tener al menos 6 caracteres y cumplir la política de seguridad de Supabase.</p>
+        <button class="btn btn-orange" type="submit">Activar acceso</button>
+        <p id="activation-status" class="form-status" role="status" aria-live="polite"></p>
+      </form>
+    </details>
+  </main>
+  <script type="module" src="../assets/js/login.js"></script>
+</body>
+</html>

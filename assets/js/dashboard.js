@@ -49,6 +49,17 @@ const deleteDialog = document.querySelector("#delete-dialog");
 const deleteDescription = document.querySelector("#delete-description");
 const deleteError = document.querySelector("#delete-error");
 const deleteConfirm = document.querySelector("#delete-confirm");
+const accessRequestsManagement = document.querySelector("#access-requests-management");
+const toggleAccessRequests = document.querySelector("#toggle-access-requests");
+const accessRequestsTable = document.querySelector("#access-requests-table");
+const accessRequestsStatus = document.querySelector("#access-requests-status");
+const refreshAccessRequests = document.querySelector("#refresh-access-requests");
+const accessCodeDialog = document.querySelector("#access-code-dialog");
+const accessCodeValue = document.querySelector("#access-code-value");
+const accessCodeEmail = document.querySelector("#access-code-email");
+const accessCodeDescription = document.querySelector("#access-code-description");
+const copyAccessCode = document.querySelector("#copy-access-code");
+const closeAccessCode = document.querySelector("#close-access-code");
 let pendingDecision = null;
 let editingContent = null;
 let deletingContent = null;
@@ -60,6 +71,7 @@ let allRequests = [];
 let activeRequestFilter = "all";
 let pendingHiddenRequest = null;
 let canManageRequests = false;
+let currentAdminRole = null;
 
 const projectLocations = [
   "Panamá",
@@ -111,23 +123,132 @@ async function init() {
     return;
   }
 
-  const { data: role, error: roleError } = await supabase.rpc("current_admin_role");
+  const { data: role, error: roleError } = await supabase.rpc("access_admin_role");
 
-  if (roleError || !["superadmin", "admin", "soporte"].includes(role)) {
+  if (roleError || !["superadmin", "admin", "soporte", "support"].includes(role)) {
     await supabase.auth.signOut();
     window.location.href = "login.html";
     return;
   }
 
+  currentAdminRole = role;
   welcome.textContent = `Sesión iniciada: ${user.email} · Rol: ${role}`;
   canManageRequests = role === "admin" || role === "superadmin";
   requestFilterControls.hidden = !canManageRequests;
+  toggleAccessRequests.hidden = !canManageRequests;
   if (role === "admin" || role === "superadmin") {
     contentManagement.hidden = false;
     await loadContentManagement();
   }
 
   await loadDashboard();
+}
+
+async function loadAccessRequests() {
+  accessRequestsStatus.textContent = "Cargando solicitudes de acceso...";
+  accessRequestsStatus.classList.remove("error");
+  const { data, error } = await supabase
+    .from("admin_access_requests")
+    .select("id, full_name, email, created_at")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("No se pudieron cargar las solicitudes de acceso:", error);
+    accessRequestsStatus.textContent = "No se pudieron cargar las solicitudes. Revisa que esté aplicada la configuración SQL de acceso administrativo.";
+    accessRequestsStatus.classList.add("error");
+    accessRequestsTable.replaceChildren(makeTableMessage("Error al cargar las solicitudes de acceso.", 4));
+    return;
+  }
+
+  accessRequestsTable.replaceChildren();
+  if (!data.length) {
+    accessRequestsTable.append(makeTableMessage("No hay solicitudes de acceso pendientes.", 4));
+    accessRequestsStatus.textContent = "";
+    return;
+  }
+
+  data.forEach((request) => {
+    const row = document.createElement("tr");
+    appendCell(row, request.full_name);
+    appendCell(row, request.email);
+    appendCell(row, new Date(request.created_at).toLocaleDateString("es-PA"));
+
+    const actions = document.createElement("td");
+    actions.className = "access-request-actions";
+    actions.append(
+      makeAccessRequestButton(request, "approve"),
+      makeAccessRequestButton(request, "reject")
+    );
+    row.append(actions);
+    accessRequestsTable.append(row);
+  });
+  accessRequestsStatus.textContent = "";
+}
+
+function makeAccessRequestButton(request, action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = action === "approve" ? "btn btn-orange" : "btn btn-dark";
+  button.textContent = action === "approve"
+    ? currentAdminRole === "superadmin" ? "Aceptar y generar código" : "Aceptar (solo superadmin)"
+    : "Rechazar";
+  if (action === "approve" && currentAdminRole !== "superadmin") {
+    button.disabled = true;
+    button.title = "Solo el superadministrador puede aprobar y generar códigos.";
+  }
+  button.addEventListener("click", () => {
+    if (action === "approve") approveAccessRequest(request, button);
+    else rejectAccessRequest(request, button);
+  });
+  return button;
+}
+
+async function approveAccessRequest(request, button) {
+  const codeBytes = crypto.getRandomValues(new Uint8Array(16));
+  const code = Array.from(codeBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  button.disabled = true;
+  accessRequestsStatus.textContent = "Aprobando solicitud...";
+  accessRequestsStatus.classList.remove("error");
+
+  const { error } = await supabase.rpc("issue_admin_activation_code", {
+    p_request_id: request.id,
+    p_code: code
+  });
+
+  if (error) {
+    console.error("No se pudo aprobar la solicitud de acceso:", error);
+    button.disabled = false;
+    accessRequestsStatus.textContent = "No se pudo aprobar la solicitud. Comprueba tu rol de superadministrador y la configuración SQL.";
+    accessRequestsStatus.classList.add("error");
+    return;
+  }
+
+  accessCodeValue.value = code;
+  accessCodeEmail.textContent = `Correo aprobado: ${request.email}`;
+  accessCodeDescription.textContent = "Entrega este código personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.";
+  accessCodeDialog.showModal();
+  await loadAccessRequests();
+}
+
+async function rejectAccessRequest(request, button) {
+  if (!window.confirm(`¿Rechazar la solicitud de acceso de ${request.full_name}?`)) return;
+  button.disabled = true;
+  accessRequestsStatus.textContent = "Actualizando solicitud...";
+  accessRequestsStatus.classList.remove("error");
+  const { error } = await supabase.rpc("reject_admin_access_request", {
+    p_request_id: request.id
+  });
+
+  if (error) {
+    console.error("No se pudo rechazar la solicitud de acceso:", error);
+    button.disabled = false;
+    accessRequestsStatus.textContent = "No se pudo rechazar la solicitud. Comprueba tu rol de superadministrador y la configuración SQL.";
+    accessRequestsStatus.classList.add("error");
+    return;
+  }
+
+  await loadAccessRequests();
 }
 
 async function loadContentManagement() {
@@ -1070,5 +1191,32 @@ logout?.addEventListener("click", async () => {
 });
 
 refreshButton?.addEventListener("click", loadDashboard);
+toggleAccessRequests?.addEventListener("click", async () => {
+  const isOpening = accessRequestsManagement.hidden;
+  accessRequestsManagement.hidden = !isOpening;
+  toggleAccessRequests.setAttribute("aria-expanded", String(isOpening));
+  toggleAccessRequests.textContent = isOpening
+    ? "Ocultar solicitudes de acceso"
+    : "Ver solicitudes de acceso";
+  if (isOpening) await loadAccessRequests();
+});
+refreshAccessRequests?.addEventListener("click", loadAccessRequests);
+closeAccessCode?.addEventListener("click", () => accessCodeDialog.close());
+accessCodeDialog?.addEventListener("close", () => {
+  accessCodeValue.value = "";
+  accessCodeEmail.textContent = "";
+  accessCodeDescription.textContent = "Entrega este código personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.";
+});
+copyAccessCode?.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(accessCodeValue.value);
+    accessCodeDescription.textContent = "Código copiado. Entrégalo personalmente al trabajador; vence en 24 horas y solo se usa una vez.";
+  } catch (error) {
+    console.error("No se pudo copiar el código de activación:", error);
+    accessCodeDescription.textContent = "No se pudo copiar automáticamente. Selecciona el código y cópialo manualmente antes de cerrar.";
+    accessCodeValue.focus();
+    accessCodeValue.select();
+  }
+});
 
 init();

@@ -15,6 +15,7 @@
     <p class="eyebrow">RESUMEN GENERAL</p>
     <h1>Panel administrativo</h1>
     <p id="admin-welcome" class="muted">Verificando acceso...</p>
+    <button id="toggle-access-requests" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="access-requests-management" hidden>Ver solicitudes de acceso</button>
     <div class="dashboard-grid">
       <article class="stat-card"><span>Solicitudes recibidas</span><strong id="quote-count">—</strong></article>
       <article class="stat-card"><span>Proyectos publicados</span><strong id="project-count">—</strong></article>
@@ -55,6 +56,20 @@
       </section>
       <p id="management-status" class="form-status" role="status" aria-live="polite"></p>
     </div>
+    <section id="access-requests-management" class="requests-section" aria-labelledby="access-requests-heading" hidden>
+      <div class="requests-heading">
+        <div><p class="eyebrow">PERSONAL</p><h2 id="access-requests-heading">Solicitudes de acceso</h2></div>
+        <button id="refresh-access-requests" class="btn btn-dark" type="button">Actualizar</button>
+      </div>
+      <p class="muted">Los admins pueden revisar y rechazar solicitudes. Solo el superadministrador puede aprobarlas y generar el código temporal de un solo uso, válido por 24 horas.</p>
+      <p id="access-requests-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table access-requests-table">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Fecha</th><th>Acciones</th></tr></thead>
+          <tbody id="access-requests-table"><tr><td colspan="4">Cargando solicitudes...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
     <section class="requests-section" aria-labelledby="requests-heading">
       <div class="requests-heading">
         <div><p class="eyebrow">COTIZACIONES</p><h2 id="requests-heading">Solicitudes recibidas</h2></div>
@@ -93,6 +108,21 @@
         <button id="decision-confirm" class="decision-confirm-button" type="submit">Confirmar</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="access-code-dialog" class="decision-dialog" aria-labelledby="access-code-title" aria-describedby="access-code-description">
+    <section class="decision-dialog-card">
+      <div class="decision-dialog-icon" aria-hidden="true">✓</div>
+      <p class="eyebrow">APROBACIÓN DE ACCESO</p>
+      <h2 id="access-code-title">Código temporal generado</h2>
+      <p id="access-code-description" class="decision-dialog-copy">Entrega este código personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.</p>
+      <label class="decision-passcode-label" for="access-code-value">Código de activación</label>
+      <input id="access-code-value" class="access-code-value" type="text" readonly>
+      <p id="access-code-email" class="decision-dialog-copy"></p>
+      <div class="decision-dialog-actions">
+        <button id="copy-access-code" class="decision-cancel-button" type="button">Copiar código</button>
+        <button id="close-access-code" class="decision-confirm-button" type="button">Listo</button>
+      </div>
+    </section>
   </dialog>
   <dialog id="hide-request-dialog" class="decision-dialog" aria-labelledby="hide-request-title" aria-describedby="hide-request-description">
     <form id="hide-request-form" class="decision-dialog-card" novalidate>
