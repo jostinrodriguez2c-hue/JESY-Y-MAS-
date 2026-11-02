@@ -158,15 +158,7 @@ async function init() {
   requestFilterControls.hidden = !canManageRequests;
   toggleAccessRequests.hidden = !canManageRequests;
   toggleActivityHistory.hidden = !canManageRequests;
-  if (role === "superadmin") {
-    const { data: canManageRoles, error: roleAccessError } = await supabase.rpc("is_primary_superadmin");
-    if (roleAccessError) {
-      console.error("No se pudo verificar el permiso para administrar roles:", roleAccessError);
-      welcome.textContent += " · No se pudo verificar el permiso para administrar roles.";
-    } else {
-      toggleRoleManagement.hidden = !canManageRoles;
-    }
-  }
+  toggleRoleManagement.hidden = !canManageRequests;
   if (role === "admin" || role === "superadmin") {
     contentManagement.hidden = false;
     await loadContentManagement();
@@ -232,9 +224,12 @@ async function loadRoleUsers() {
 
   canManageSuperadminRole = data.some((user) => user.can_manage_superadmin_role);
   roleUsersTable.replaceChildren();
+  if (!canManageSuperadminRole) {
+    roleManagementStatus.textContent = "Solo el superadmin principal puede cambiar roles. Verifica que este usuario tenga rol superadmin y esté configurado como primary_superadmin_id en Supabase.";
+  }
   if (!data.length) {
     roleUsersTable.append(makeTableMessage("No hay cuentas disponibles.", 4));
-    roleManagementStatus.textContent = "";
+    if (canManageSuperadminRole) roleManagementStatus.textContent = "";
     return;
   }
 
@@ -276,9 +271,11 @@ async function loadRoleUsers() {
     const isCurrentUser = user.user_id === currentUserId;
     const isPrimaryOwner = user.is_primary_superadmin;
     const cannotManageSuperadminTarget = user.role === "superadmin" && !canManageSuperadminRole;
-    select.disabled = isCurrentUser || isPrimaryOwner || cannotManageSuperadminTarget;
+    select.disabled = !canManageSuperadminRole || isCurrentUser || isPrimaryOwner || cannotManageSuperadminTarget;
     save.disabled = select.disabled;
-    if (isCurrentUser) {
+    if (!canManageSuperadminRole) {
+      save.title = "Solo el superadmin principal puede cambiar roles.";
+    } else if (isCurrentUser) {
       save.title = "No puedes cambiar tu propio rol.";
     } else if (isPrimaryOwner) {
       save.title = "El superadmin principal no puede perder este rol.";
@@ -290,7 +287,7 @@ async function loadRoleUsers() {
     row.append(actions);
     roleUsersTable.append(row);
   });
-  roleManagementStatus.textContent = "";
+  if (canManageSuperadminRole) roleManagementStatus.textContent = "";
 }
 
 async function updateUserRole(user, select, button) {

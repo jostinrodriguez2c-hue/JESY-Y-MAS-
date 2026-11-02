@@ -22,6 +22,9 @@ create table if not exists public.activity_log (
   created_at timestamptz not null default now()
 );
 
+alter table public.activity_log
+  add column if not exists details jsonb;
+
 create index if not exists activity_log_created_at_desc
   on public.activity_log (created_at desc);
 
@@ -908,3 +911,5 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
 after insert on auth.users
 for each row execute procedure public.handle_new_user();
+
+notify pgrst, 'reload schema';
