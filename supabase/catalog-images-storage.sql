@@ -18,5 +18,5 @@ create policy "Admins upload catalog images"
   with check (
     bucket_id = 'catalog-images'
     and (storage.foldername(name))[1] = (select auth.uid())::text
-    and public.is_admin()
+    and public.current_admin_role() in ('superadmin', 'admin')
   );

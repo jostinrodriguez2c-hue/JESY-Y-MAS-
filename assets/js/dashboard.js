@@ -31,7 +31,7 @@ const deleteConfirm = document.querySelector("#delete-confirm");
 let pendingDecision = null;
 let editingContent = null;
 let deletingContent = null;
-let projectImagePreviewUrl = "";
+let contentImagePreviewUrl = "";
 
 const projectLocations = [
   "Panamá",
@@ -242,25 +242,25 @@ function addContentSelect({ name, label, options, value = "", required = false, 
   return select;
 }
 
-function addProjectImageField(value = "") {
+function addContentImageField({ name, label, value = "", help = "" }) {
   const wrapper = document.createElement("div");
   wrapper.className = "content-field content-field-compact content-image-field";
 
-  const linksLabel = document.createElement("label");
-  linksLabel.className = "content-field content-field-compact";
-  linksLabel.textContent = "Enlace de fotografía (uno por línea)";
   const links = document.createElement("textarea");
-  links.name = "image_urls";
+  links.name = name;
   links.rows = 1;
   links.value = value;
   links.placeholder = "https://...";
+  const linksLabel = document.createElement("label");
+  linksLabel.className = "content-field content-field-compact";
+  linksLabel.textContent = `${label} (enlace público)`;
   linksLabel.append(links);
 
   const fileLabel = document.createElement("label");
   fileLabel.className = "content-field content-field-compact";
-  fileLabel.textContent = "Fotografía desde esta computadora";
+  fileLabel.textContent = "O selecciona una fotografía desde esta computadora";
   const fileInput = document.createElement("input");
-  fileInput.name = "project_image_file";
+  fileInput.name = `${name}_file`;
   fileInput.type = "file";
   fileInput.accept = "image/jpeg,image/png,image/webp";
   const fileName = document.createElement("span");
@@ -268,17 +268,17 @@ function addProjectImageField(value = "") {
   fileName.textContent = "Ningún archivo seleccionado";
   const preview = document.createElement("img");
   preview.className = "content-image-preview";
-  preview.alt = "Vista previa de la fotografía del proyecto";
+  preview.alt = `Vista previa: ${label.toLocaleLowerCase("es")}`;
   preview.hidden = true;
-  const help = document.createElement("small");
-  help.textContent = "Elige un archivo JPG, PNG o WEBP de hasta 5 MB, o pega un enlace público. Google Drive requiere acceso público.";
-  fileLabel.append(fileInput, fileName, preview, help);
+  const helpText = document.createElement("small");
+  helpText.textContent = help || "JPG, PNG o WEBP de hasta 5 MB. Los enlaces deben ser públicos; Google Drive debe permitir acceso a cualquiera con el enlace.";
+  fileLabel.append(fileInput, fileName, preview, helpText);
   fileInput.addEventListener("change", () => {
     const file = fileInput.files[0];
     fileName.textContent = file?.name || "Ningún archivo seleccionado";
-    if (projectImagePreviewUrl) URL.revokeObjectURL(projectImagePreviewUrl);
-    projectImagePreviewUrl = file ? URL.createObjectURL(file) : "";
-    preview.src = projectImagePreviewUrl;
+    if (contentImagePreviewUrl) URL.revokeObjectURL(contentImagePreviewUrl);
+    contentImagePreviewUrl = file ? URL.createObjectURL(file) : "";
+    preview.src = contentImagePreviewUrl;
     preview.hidden = !file;
   });
 
@@ -357,12 +357,16 @@ function openContentDialog(type, item = null) {
       compact: true
     });
     addContentField({ name: "completed_on", label: "Fecha de realización", value: item?.completed_on, type: "date" });
-    addProjectImageField(item?.image_urls?.join("\n"));
+    addContentImageField({
+      name: "image_urls",
+      label: "Fotografías del proyecto",
+      value: item?.image_urls?.join("\n")
+    });
     addContentCheckbox({ name: "published", label: "Mostrar este proyecto en la página pública", checked: item?.published ?? false });
   } else {
     addContentField({ name: "name", label: "Nombre del servicio *", value: item?.name, required: true });
     addContentField({ name: "description", label: "Descripción *", value: item?.description, multiline: true, required: true });
-    addContentField({ name: "image_url", label: "Enlace de imagen", value: item?.image_url, type: "url" });
+    addContentImageField({ name: "image_url", label: "Imagen del servicio", value: item?.image_url });
     addContentCheckbox({ name: "active", label: "Mostrar este servicio en la página pública", checked: item?.active ?? true });
   }
 
@@ -395,7 +399,7 @@ function readContentForm() {
     if (!projectTypes.includes(serviceType) || !projectStatuses.some((status) => status.value === projectStatus)) {
       throw new Error("Selecciona el tipo de trabajo y el estado del proyecto.");
     }
-    const imageFile = formData.get("project_image_file");
+    const imageFile = formData.get("image_urls_file");
     if (imageFile?.size) {
       if (!["image/jpeg", "image/png", "image/webp"].includes(imageFile.type) || imageFile.size > 5 * 1024 * 1024) {
         throw new Error("La fotografía debe ser JPG, PNG o WEBP y no superar 5 MB.");
@@ -415,13 +419,19 @@ function readContentForm() {
   }
 
   const imageUrl = String(formData.get("image_url") || "").trim();
-  if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
+  const normalizedImageUrl = normalizeImageUrl(imageUrl);
+  if (normalizedImageUrl && !/^https?:\/\//i.test(normalizedImageUrl)) {
     throw new Error("El enlace de imagen debe empezar con http:// o https://.");
+  }
+  const imageFile = formData.get("image_url_file");
+  if (imageFile?.size && (!["image/jpeg", "image/png", "image/webp"].includes(imageFile.type) || imageFile.size > 5 * 1024 * 1024)) {
+    throw new Error("La fotografía debe ser JPG, PNG o WEBP y no superar 5 MB.");
   }
   return {
     name: String(formData.get("name") || "").trim(),
     description: String(formData.get("description") || "").trim(),
-    image_url: imageUrl || null,
+    image_url: normalizedImageUrl || null,
+    image_file: imageFile?.size ? imageFile : null,
     active: formData.get("active") === "on"
   };
 }
@@ -439,7 +449,7 @@ function normalizeImageUrl(value) {
   return fileId ? `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}` : value;
 }
 
-async function uploadProjectImage(file) {
+async function uploadCatalogImage(file) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error("No se pudo verificar la sesión administrativa para subir la imagen.");
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -471,12 +481,14 @@ contentForm?.addEventListener("submit", async (event) => {
   contentSave.textContent = "Guardando...";
   const table = editingContent.type === "project" ? "projects" : "services";
   try {
-    if (editingContent.type === "project" && payload.image_file) {
-      payload.image_urls.push(await uploadProjectImage(payload.image_file));
+    if (payload.image_file) {
+      const uploadedImageUrl = await uploadCatalogImage(payload.image_file);
+      if (editingContent.type === "project") payload.image_urls.push(uploadedImageUrl);
+      else payload.image_url = uploadedImageUrl;
     }
     delete payload.image_file;
   } catch (error) {
-    console.error("No se pudo subir la fotografía del proyecto:", error);
+    console.error("No se pudo subir la fotografía del catálogo:", error);
     contentError.textContent = error.message || "No se pudo subir la fotografía. Verifica la configuración de Storage.";
     contentSave.disabled = false;
     contentSave.textContent = editingContent.id ? "Guardar cambios" : "Agregar";
@@ -535,8 +547,8 @@ document.querySelector("#add-service")?.addEventListener("click", () => openCont
 document.querySelector("#content-cancel")?.addEventListener("click", () => contentDialog.close());
 document.querySelector("#delete-cancel")?.addEventListener("click", () => deleteDialog.close());
 contentDialog?.addEventListener("close", () => {
-  if (projectImagePreviewUrl) URL.revokeObjectURL(projectImagePreviewUrl);
-  projectImagePreviewUrl = "";
+  if (contentImagePreviewUrl) URL.revokeObjectURL(contentImagePreviewUrl);
+  contentImagePreviewUrl = "";
   contentForm.reset();
   contentFields.replaceChildren();
   contentError.textContent = "";
