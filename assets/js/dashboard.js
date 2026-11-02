@@ -325,7 +325,7 @@ async function loadActivityHistory() {
 
   if (error) {
     console.error("No se pudo cargar el historial de actividad:", error);
-    activityHistoryStatus.textContent = "No se pudo cargar el historial. Verifica que esté aplicada la configuración SQL de auditoría.";
+    activityHistoryStatus.textContent = `No se pudo cargar el historial (${error.code || "error"}): ${error.message}.`;
     activityHistoryStatus.classList.add("error");
     activityHistoryTable.replaceChildren(makeTableMessage("Error al cargar el historial.", 4));
     previousActivityPage.disabled = true;
