@@ -6,6 +6,8 @@ const welcome = document.querySelector("#admin-welcome");
 const logout = document.querySelector("#logout-button");
 const quotesTable = document.querySelector("#quotes-table");
 const refreshButton = document.querySelector("#refresh-quotes");
+const requestFilterToggle = document.querySelector("#request-filter-toggle");
+const requestFilterMenu = document.querySelector("#request-filter-menu");
 const decisionDialog = document.querySelector("#decision-dialog");
 const decisionForm = document.querySelector("#decision-form");
 const decisionTitle = document.querySelector("#decision-title");
@@ -42,6 +44,8 @@ let contentImagePreviewUrl = "";
 let managedProjects = [];
 let managedServices = [];
 let pendingContentSelection = null;
+let allRequests = [];
+let activeRequestFilter = "all";
 
 const projectLocations = [
   "Panamá",
@@ -198,8 +202,9 @@ function openContentSelection(type, action) {
   contentSelectionDescription.textContent = items.length
     ? `Selecciona cuál ${singular} deseas ${action === "edit" ? "editar" : "eliminar"}.`
     : `Todavía no hay ${type === "project" ? "proyectos" : "servicios"} para ${action === "edit" ? "editar" : "eliminar"}.`;
-  contentSelectionConfirm.textContent = action === "edit" ? "Continuar para editar" : "Continuar para eliminar";
+  contentSelectionConfirm.textContent = action === "edit" ? "Editar" : "Eliminar de la lista";
   contentSelectionConfirm.disabled = !items.length;
+  contentSelectionDialog.classList.toggle("is-deleting", action === "delete");
 
   const placeholder = document.createElement("option");
   placeholder.value = "";
@@ -643,6 +648,8 @@ async function loadDashboard() {
     return;
   }
 
+  allRequests = requests.data;
+  updateRequestFilterCounts(allRequests);
   renderRequests(requests.data);
   status.textContent = requests.data.length
     ? `${requests.data.length} solicitud${requests.data.length === 1 ? "" : "es"} recibida${requests.data.length === 1 ? "" : "s"}.`
@@ -663,12 +670,22 @@ function makeMessageRow(message) {
 
 function renderRequests(requests) {
   quotesTable.replaceChildren();
-  if (!requests.length) {
-    quotesTable.append(makeMessageRow("Todavía no hay solicitudes."));
+  const filteredRequests = requests.filter((request) => {
+    const category = getRequestCategory(request.status);
+    return activeRequestFilter === "all" || category === activeRequestFilter;
+  });
+  if (!filteredRequests.length) {
+    const messages = {
+      all: "Todavía no hay solicitudes.",
+      accepted: "No hay solicitudes aceptadas.",
+      pending: "No hay solicitudes pendientes.",
+      rejected: "No hay solicitudes rechazadas."
+    };
+    quotesTable.append(makeMessageRow(messages[activeRequestFilter]));
     return;
   }
 
-  requests.forEach((request) => {
+  filteredRequests.forEach((request) => {
     const row = document.createElement("tr");
     appendCell(row, new Date(request.created_at).toLocaleString("es-PA", {
       dateStyle: "medium",
@@ -730,6 +747,63 @@ function renderRequests(requests) {
     quotesTable.append(row);
   });
 }
+
+function getRequestCategory(status) {
+  const normalizedStatus = String(status || "").toLocaleLowerCase();
+  if (["aceptado", "accepted", "approved"].includes(normalizedStatus)) return "accepted";
+  if (["rechazado", "rejected"].includes(normalizedStatus)) return "rejected";
+  return "pending";
+}
+
+function updateRequestFilterCounts(requests) {
+  const counts = { accepted: 0, pending: 0, rejected: 0 };
+  requests.forEach((request) => {
+    counts[getRequestCategory(request.status)] += 1;
+  });
+  document.querySelector("#accepted-count").textContent = String(counts.accepted);
+  document.querySelector("#pending-count").textContent = String(counts.pending);
+  document.querySelector("#rejected-count").textContent = String(counts.rejected);
+}
+
+requestFilterToggle?.addEventListener("click", () => {
+  const isExpanded = requestFilterToggle.getAttribute("aria-expanded") === "true";
+  requestFilterToggle.setAttribute("aria-expanded", String(!isExpanded));
+  requestFilterMenu.classList.toggle("is-open", !isExpanded);
+});
+
+requestFilterToggle?.parentElement.addEventListener("mouseenter", () => {
+  requestFilterMenu.classList.add("is-open");
+});
+
+requestFilterToggle?.parentElement.addEventListener("mouseleave", () => {
+  if (requestFilterToggle.getAttribute("aria-expanded") !== "true") {
+    requestFilterMenu.classList.remove("is-open");
+  }
+});
+
+requestFilterMenu?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-request-filter]");
+  if (!button) return;
+  activeRequestFilter = activeRequestFilter === button.dataset.requestFilter
+    ? "all"
+    : button.dataset.requestFilter;
+  requestFilterMenu.querySelectorAll("[data-request-filter]").forEach((option) => {
+    option.classList.toggle("is-selected", option.dataset.requestFilter === activeRequestFilter);
+  });
+  requestFilterToggle.textContent = activeRequestFilter === "all"
+    ? "Filtrar solicitudes"
+    : button.firstChild.textContent.trim();
+  requestFilterToggle.setAttribute("aria-expanded", "false");
+  requestFilterMenu.classList.remove("is-open");
+  requestFilterToggle.focus();
+  renderRequests(allRequests);
+});
+
+document.addEventListener("click", (event) => {
+  if (event.target.closest(".request-filter")) return;
+  requestFilterToggle?.setAttribute("aria-expanded", "false");
+  requestFilterMenu?.classList.remove("is-open");
+});
 
 function appendCell(row, text) {
   const cell = document.createElement("td");

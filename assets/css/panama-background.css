@@ -248,14 +248,75 @@ main.section::before {
   padding-inline: 16px;
 }
 
-.management-toolbar-delete {
+body.admin-body .management-toolbar-delete {
   border: 1px solid #efc5bf;
   background: rgba(255, 255, 255, .92);
   color: #a43d32;
 }
 
-.management-toolbar-delete:hover {
+body.admin-body .management-toolbar-delete:hover {
   background: #fff0ee;
+}
+
+body.admin-body .requests-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+body.admin-body .request-filter {
+  position: relative;
+}
+
+body.admin-body .request-filter-menu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 6px);
+  right: 0;
+  display: none;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid #dfe6ed;
+  border-radius: 10px;
+  background: white;
+  box-shadow: 0 12px 30px rgba(20, 40, 63, .18);
+}
+
+body.admin-body .request-filter-menu.is-open {
+  display: grid;
+}
+
+body.admin-body .request-filter-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #243a50;
+  font: 600 12px Inter, sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+
+body.admin-body .request-filter-menu button:hover,
+body.admin-body .request-filter-menu button.is-selected {
+  background: #f1f5f8;
+  color: #b85c17;
+}
+
+body.admin-body .request-filter-menu button span {
+  display: inline-grid;
+  min-width: 23px;
+  min-height: 23px;
+  place-items: center;
+  border-radius: 99px;
+  background: #edf1f5;
+  color: #1d3b5a;
+  font-size: 10px;
 }
 
 .management-table {
@@ -334,6 +395,31 @@ main.section::before {
 .content-selection-dialog select:focus {
   border-color: #e58a32;
   box-shadow: 0 0 0 3px rgba(229, 138, 50, .14);
+}
+
+body.admin-body .content-selection-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+}
+
+body.admin-body .content-selection-row .decision-confirm-button {
+  min-height: 44px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 8px;
+  font: 700 11px Inter, sans-serif;
+  cursor: pointer;
+}
+
+body.admin-body .content-selection-dialog.is-deleting .content-selection-row .decision-confirm-button {
+  background: #b7473b;
+}
+
+body.admin-body .content-selection-row .decision-confirm-button:disabled {
+  cursor: not-allowed;
+  opacity: .55;
 }
 
 .content-selection-dialog .decision-confirm-button:disabled {
@@ -596,8 +682,38 @@ main.section::before {
     background-attachment: scroll;
   }
 
+  body.admin-body .requests-heading {
+    align-items: flex-start;
+  }
+
+  body.admin-body .management-toolbar,
+  body.admin-body .requests-toolbar {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  body.admin-body .management-toolbar .btn {
+    min-height: 38px;
+    padding-inline: 11px;
+    font-size: 11px;
+  }
+
+  body.admin-body .requests-toolbar .btn {
+    min-height: 38px;
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+
   .decision-dialog-card {
     padding: 27px 22px;
+  }
+
+  body.admin-body .content-selection-row {
+    grid-template-columns: 1fr;
+  }
+
+  body.admin-body .content-selection-row .decision-confirm-button {
+    width: 100%;
   }
 
   .catalog-grid {

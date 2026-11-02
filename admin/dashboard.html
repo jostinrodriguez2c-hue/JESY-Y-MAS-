@@ -26,8 +26,8 @@
           <div><p class="eyebrow">PORTAFOLIO</p><h2 id="manage-projects-heading">Administrar proyectos</h2></div>
           <div class="management-toolbar">
             <button id="add-project" class="btn btn-orange" type="button">Agregar proyecto</button>
-            <button id="edit-project" class="btn btn-dark" type="button">Editar proyecto</button>
-            <button id="delete-project" class="btn btn-dark management-toolbar-delete" type="button">Eliminar proyecto</button>
+            <button id="edit-project" class="btn btn-dark" type="button">Editar</button>
+            <button id="delete-project" class="btn btn-dark management-toolbar-delete" type="button">Eliminar</button>
           </div>
         </div>
         <div class="requests-table-wrap">
@@ -42,8 +42,8 @@
           <div><p class="eyebrow">CATÁLOGO</p><h2 id="manage-services-heading">Administrar servicios</h2></div>
           <div class="management-toolbar">
             <button id="add-service" class="btn btn-orange" type="button">Agregar servicio</button>
-            <button id="edit-service" class="btn btn-dark" type="button">Editar servicio</button>
-            <button id="delete-service" class="btn btn-dark management-toolbar-delete" type="button">Eliminar servicio</button>
+            <button id="edit-service" class="btn btn-dark" type="button">Editar</button>
+            <button id="delete-service" class="btn btn-dark management-toolbar-delete" type="button">Eliminar</button>
           </div>
         </div>
         <div class="requests-table-wrap">
@@ -58,7 +58,17 @@
     <section class="requests-section" aria-labelledby="requests-heading">
       <div class="requests-heading">
         <div><p class="eyebrow">COTIZACIONES</p><h2 id="requests-heading">Solicitudes recibidas</h2></div>
-        <button id="refresh-quotes" class="btn btn-dark" type="button">Actualizar</button>
+        <div class="requests-toolbar">
+          <div class="request-filter">
+            <button id="request-filter-toggle" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="request-filter-menu">Filtrar solicitudes</button>
+            <div id="request-filter-menu" class="request-filter-menu" aria-label="Filtrar solicitudes">
+              <button type="button" data-request-filter="accepted">Aceptadas <span id="accepted-count">0</span></button>
+              <button type="button" data-request-filter="pending">Pendientes <span id="pending-count">0</span></button>
+              <button type="button" data-request-filter="rejected">Rechazadas <span id="rejected-count">0</span></button>
+            </div>
+          </div>
+          <button id="refresh-quotes" class="btn btn-dark" type="button">Actualizar</button>
+        </div>
       </div>
       <p id="dashboard-status" class="form-status" role="status" aria-live="polite"></p>
       <div class="requests-table-wrap">
@@ -91,11 +101,13 @@
       <h2 id="content-selection-title">Seleccionar contenido</h2>
       <p id="content-selection-description" class="decision-dialog-copy">Elige un elemento de la lista.</p>
       <label class="content-field" for="content-selection">Contenido</label>
-      <select id="content-selection" name="content_id" required></select>
+      <div class="content-selection-row">
+        <select id="content-selection" name="content_id" required></select>
+        <button id="content-selection-confirm" class="decision-confirm-button" type="submit">Continuar</button>
+      </div>
       <p id="content-selection-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
       <div class="decision-dialog-actions">
         <button id="content-selection-cancel" class="decision-cancel-button" type="button">Cancelar</button>
-        <button id="content-selection-confirm" class="decision-confirm-button" type="submit">Continuar</button>
       </div>
     </form>
   </dialog>
