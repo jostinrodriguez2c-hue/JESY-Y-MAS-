@@ -176,6 +176,14 @@ function makeDecisionButton(request, decision, label, enabled) {
   button.textContent = label;
   button.disabled = !enabled;
   button.addEventListener("click", async () => {
+    const passcode = window.prompt("Ingresa la clave para confirmar esta acción:");
+    if (passcode !== "2002") {
+      if (passcode !== null) {
+        status.textContent = "Clave incorrecta. No se realizó ningún cambio.";
+        status.classList.add("error");
+      }
+      return;
+    }
     if (decision === "rechazado" && !window.confirm("¿Confirmas que quieres rechazar esta solicitud?")) return;
     button.disabled = true;
     status.textContent = "Actualizando solicitud...";
