@@ -31,6 +31,46 @@ const deleteConfirm = document.querySelector("#delete-confirm");
 let pendingDecision = null;
 let editingContent = null;
 let deletingContent = null;
+let projectImagePreviewUrl = "";
+
+const projectLocations = [
+  "Panamá",
+  "Panamá Oeste",
+  "Colón",
+  "Coclé",
+  "Veraguas",
+  "Chiriquí",
+  "Bocas del Toro",
+  "Herrera",
+  "Los Santos",
+  "Darién",
+  "Comarca Guna Yala",
+  "Comarca Emberá-Wounaan",
+  "Comarca Ngäbe-Buglé",
+  "Comarca Naso Tjër Di",
+  "Comarca Kuna de Madungandí",
+  "Comarca Kuna de Wargandí",
+  "Otra ubicación"
+];
+
+const projectTypes = [
+  "Construcción",
+  "Diseño y planos",
+  "Instalaciones eléctricas",
+  "Remodelaciones",
+  "Supervisión de obras",
+  "Obras civiles",
+  "Consultoría de ingeniería",
+  "Otro"
+];
+
+const projectStatuses = [
+  { value: "planificacion", label: "Planificación" },
+  { value: "en_proceso", label: "En proceso" },
+  { value: "pausado", label: "Pausado" },
+  { value: "completado", label: "Completado" },
+  { value: "cancelado", label: "Cancelado" }
+];
 
 async function init() {
   if (!isSupabaseConfigured || !supabase) {
@@ -154,9 +194,9 @@ function makeContentAction(label, action) {
   return button;
 }
 
-function addContentField({ name, label, value = "", type = "text", required = false, multiline = false, help = "" }) {
+function addContentField({ name, label, value = "", type = "text", required = false, multiline = false, help = "", compact = false }) {
   const wrapper = document.createElement("label");
-  wrapper.className = "content-field";
+  wrapper.className = `content-field${compact ? " content-field-compact" : ""}`;
   wrapper.textContent = label;
   const input = multiline ? document.createElement("textarea") : document.createElement("input");
   input.name = name;
@@ -176,6 +216,75 @@ function addContentField({ name, label, value = "", type = "text", required = fa
   }
   contentFields.append(wrapper);
   return input;
+}
+
+function addContentSelect({ name, label, options, value = "", required = false, compact = false }) {
+  const wrapper = document.createElement("label");
+  wrapper.className = `content-field${compact ? " content-field-compact" : ""}`;
+  wrapper.textContent = label;
+  const select = document.createElement("select");
+  select.name = name;
+  select.required = required;
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Selecciona una opción";
+  select.append(placeholder);
+  options.forEach((option) => {
+    const entry = typeof option === "string" ? { value: option, label: option } : option;
+    const element = document.createElement("option");
+    element.value = entry.value;
+    element.textContent = entry.label;
+    element.selected = entry.value === value;
+    select.append(element);
+  });
+  wrapper.append(select);
+  contentFields.append(wrapper);
+  return select;
+}
+
+function addProjectImageField(value = "") {
+  const wrapper = document.createElement("div");
+  wrapper.className = "content-field content-field-compact content-image-field";
+
+  const linksLabel = document.createElement("label");
+  linksLabel.className = "content-field content-field-compact";
+  linksLabel.textContent = "Enlace de fotografía (uno por línea)";
+  const links = document.createElement("textarea");
+  links.name = "image_urls";
+  links.rows = 1;
+  links.value = value;
+  links.placeholder = "https://...";
+  linksLabel.append(links);
+
+  const fileLabel = document.createElement("label");
+  fileLabel.className = "content-field content-field-compact";
+  fileLabel.textContent = "Fotografía desde esta computadora";
+  const fileInput = document.createElement("input");
+  fileInput.name = "project_image_file";
+  fileInput.type = "file";
+  fileInput.accept = "image/jpeg,image/png,image/webp";
+  const fileName = document.createElement("span");
+  fileName.className = "content-file-name";
+  fileName.textContent = "Ningún archivo seleccionado";
+  const preview = document.createElement("img");
+  preview.className = "content-image-preview";
+  preview.alt = "Vista previa de la fotografía del proyecto";
+  preview.hidden = true;
+  const help = document.createElement("small");
+  help.textContent = "Elige un archivo JPG, PNG o WEBP de hasta 5 MB, o pega un enlace público. Google Drive requiere acceso público.";
+  fileLabel.append(fileInput, fileName, preview, help);
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files[0];
+    fileName.textContent = file?.name || "Ningún archivo seleccionado";
+    if (projectImagePreviewUrl) URL.revokeObjectURL(projectImagePreviewUrl);
+    projectImagePreviewUrl = file ? URL.createObjectURL(file) : "";
+    preview.src = projectImagePreviewUrl;
+    preview.hidden = !file;
+  });
+
+  wrapper.append(linksLabel, fileLabel);
+  contentFields.append(wrapper);
+  return { links, fileInput };
 }
 
 function addContentCheckbox({ name, label, checked }) {
@@ -202,17 +311,53 @@ function openContentDialog(type, item = null) {
   if (type === "project") {
     addContentField({ name: "name", label: "Nombre del proyecto *", value: item?.name, required: true });
     addContentField({ name: "description", label: "Descripción *", value: item?.description, multiline: true, required: true });
-    addContentField({ name: "location", label: "Ubicación", value: item?.location });
-    addContentField({ name: "service_type", label: "Tipo de trabajo", value: item?.service_type });
-    addContentField({ name: "status", label: "Estado del proyecto", value: item?.status || "completado" });
-    addContentField({ name: "completed_on", label: "Fecha de realización", value: item?.completed_on, type: "date" });
-    addContentField({
-      name: "image_urls",
-      label: "Enlaces de fotografías",
-      value: item?.image_urls?.join("\n"),
-      multiline: true,
-      help: "Pega una URL http(s) por línea. Para mostrar imágenes, usa enlaces públicos."
+    const locationMatch = projectLocations
+      .filter((location) => location !== "Otra ubicación")
+      .find((location) => item?.location === location || item?.location?.startsWith(`${location} · `));
+    const selectedLocation = locationMatch || (item?.location ? "Otra ubicación" : "");
+    addContentSelect({
+      name: "location_region",
+      label: "Ubicación *",
+      options: projectLocations,
+      value: selectedLocation,
+      required: true,
+      compact: true
     });
+    const locationDetail = addContentField({
+      name: "location_detail",
+      label: "Distrito, corregimiento o sector",
+      value: locationMatch && item?.location !== locationMatch
+        ? item.location.slice(locationMatch.length + 3)
+        : locationMatch ? "" : item?.location || "",
+      required: selectedLocation === "Otra ubicación",
+      help: "Obligatorio si eliges “Otra ubicación”.",
+      compact: true
+    });
+    const locationSelect = contentFields.querySelector('[name="location_region"]');
+    locationSelect.addEventListener("change", () => {
+      locationDetail.required = locationSelect.value === "Otra ubicación";
+    });
+    addContentSelect({
+      name: "service_type",
+      label: "Tipo de trabajo *",
+      options: projectTypes,
+      value: projectTypes.includes(item?.service_type) ? item.service_type : item?.service_type ? "Otro" : "",
+      required: true,
+      compact: true
+    });
+    const normalizedStatus = String(item?.status || "").trim().toLocaleLowerCase("es").replace(/[\s-]+/g, "_");
+    const statusAliases = { en_ejecucion: "en_proceso", finalizado: "completado", terminado: "completado" };
+    const statusValue = statusAliases[normalizedStatus] || normalizedStatus;
+    addContentSelect({
+      name: "status",
+      label: "Estado del proyecto *",
+      options: projectStatuses,
+      value: projectStatuses.some((status) => status.value === statusValue) ? statusValue : "",
+      required: true,
+      compact: true
+    });
+    addContentField({ name: "completed_on", label: "Fecha de realización", value: item?.completed_on, type: "date" });
+    addProjectImageField(item?.image_urls?.join("\n"));
     addContentCheckbox({ name: "published", label: "Mostrar este proyecto en la página pública", checked: item?.published ?? false });
   } else {
     addContentField({ name: "name", label: "Nombre del servicio *", value: item?.name, required: true });
@@ -232,19 +377,39 @@ function readContentForm() {
   if (editingContent.type === "project") {
     const imageUrls = String(formData.get("image_urls") || "")
       .split(/\r?\n/)
-      .map((url) => url.trim())
+      .map((url) => normalizeImageUrl(url.trim()))
       .filter(Boolean);
     if (imageUrls.some((url) => !/^https?:\/\//i.test(url))) {
       throw new Error("Cada imagen debe tener un enlace que empiece con http:// o https://.");
     }
+    const region = String(formData.get("location_region") || "");
+    const locationDetail = String(formData.get("location_detail") || "").trim();
+    if (!region || (region === "Otra ubicación" && !locationDetail)) {
+      throw new Error("Selecciona una ubicación y completa el detalle si elegiste “Otra ubicación”.");
+    }
+    const location = region === "Otra ubicación"
+      ? locationDetail
+      : locationDetail ? `${region} · ${locationDetail}` : region;
+    const serviceType = String(formData.get("service_type") || "");
+    const projectStatus = String(formData.get("status") || "");
+    if (!projectTypes.includes(serviceType) || !projectStatuses.some((status) => status.value === projectStatus)) {
+      throw new Error("Selecciona el tipo de trabajo y el estado del proyecto.");
+    }
+    const imageFile = formData.get("project_image_file");
+    if (imageFile?.size) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(imageFile.type) || imageFile.size > 5 * 1024 * 1024) {
+        throw new Error("La fotografía debe ser JPG, PNG o WEBP y no superar 5 MB.");
+      }
+    }
     return {
       name: String(formData.get("name") || "").trim(),
       description: String(formData.get("description") || "").trim(),
-      location: String(formData.get("location") || "").trim(),
-      service_type: String(formData.get("service_type") || "").trim(),
-      status: String(formData.get("status") || "completado").trim(),
+      location,
+      service_type: serviceType,
+      status: projectStatus,
       completed_on: String(formData.get("completed_on") || "") || null,
       image_urls: imageUrls,
+      image_file: imageFile?.size ? imageFile : null,
       published: formData.get("published") === "on"
     };
   }
@@ -259,6 +424,32 @@ function readContentForm() {
     image_url: imageUrl || null,
     active: formData.get("active") === "on"
   };
+}
+
+function normalizeImageUrl(value) {
+  if (!value) return "";
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    return value;
+  }
+  if (url.hostname !== "drive.google.com") return value;
+  const fileId = url.pathname.match(/\/file\/d\/([^/]+)/)?.[1] || url.searchParams.get("id");
+  return fileId ? `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}` : value;
+}
+
+async function uploadProjectImage(file) {
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  if (userError || !user) throw new Error("No se pudo verificar la sesión administrativa para subir la imagen.");
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+  const path = `${user.id}/${crypto.randomUUID()}-${safeName}`;
+  const { error } = await supabase.storage.from("catalog-images").upload(path, file, {
+    contentType: file.type,
+    upsert: false
+  });
+  if (error) throw error;
+  return supabase.storage.from("catalog-images").getPublicUrl(path).data.publicUrl;
 }
 
 contentForm?.addEventListener("submit", async (event) => {
@@ -279,6 +470,18 @@ contentForm?.addEventListener("submit", async (event) => {
   contentSave.disabled = true;
   contentSave.textContent = "Guardando...";
   const table = editingContent.type === "project" ? "projects" : "services";
+  try {
+    if (editingContent.type === "project" && payload.image_file) {
+      payload.image_urls.push(await uploadProjectImage(payload.image_file));
+    }
+    delete payload.image_file;
+  } catch (error) {
+    console.error("No se pudo subir la fotografía del proyecto:", error);
+    contentError.textContent = error.message || "No se pudo subir la fotografía. Verifica la configuración de Storage.";
+    contentSave.disabled = false;
+    contentSave.textContent = editingContent.id ? "Guardar cambios" : "Agregar";
+    return;
+  }
   const query = editingContent.id
     ? supabase.from(table).update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingContent.id)
     : supabase.from(table).insert(payload);
@@ -332,6 +535,8 @@ document.querySelector("#add-service")?.addEventListener("click", () => openCont
 document.querySelector("#content-cancel")?.addEventListener("click", () => contentDialog.close());
 document.querySelector("#delete-cancel")?.addEventListener("click", () => deleteDialog.close());
 contentDialog?.addEventListener("close", () => {
+  if (projectImagePreviewUrl) URL.revokeObjectURL(projectImagePreviewUrl);
+  projectImagePreviewUrl = "";
   contentForm.reset();
   contentFields.replaceChildren();
   contentError.textContent = "";

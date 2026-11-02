@@ -303,6 +303,7 @@ main.section::before {
 }
 
 .content-field input,
+.content-field select,
 .content-field textarea {
   width: 100%;
   min-height: 42px;
@@ -322,6 +323,7 @@ main.section::before {
 }
 
 .content-field input:focus,
+.content-field select:focus,
 .content-field textarea:focus {
   border-color: #e58a32;
   box-shadow: 0 0 0 3px rgba(229, 138, 50, .14);
@@ -331,6 +333,86 @@ main.section::before {
   color: #65768a;
   font-size: 10px;
   font-weight: 400;
+}
+
+.content-field select {
+  appearance: none;
+  padding-right: 34px;
+  background-color: rgba(255, 255, 255, .95);
+  background-image: linear-gradient(45deg, transparent 50%, #455668 50%), linear-gradient(135deg, #455668 50%, transparent 50%);
+  background-position: calc(100% - 16px) 18px, calc(100% - 11px) 18px;
+  background-repeat: no-repeat;
+  background-size: 5px 5px;
+  cursor: pointer;
+}
+
+.content-field-compact {
+  gap: 4px;
+  font-size: 10px;
+}
+
+.content-field-compact input,
+.content-field-compact select,
+.content-field-compact textarea {
+  min-height: 32px;
+  padding: 6px 9px;
+  font-size: 11px;
+}
+
+.content-field-compact select {
+  min-height: 32px;
+  background-position: calc(100% - 16px) 13px, calc(100% - 11px) 13px;
+}
+
+.content-field-compact textarea {
+  min-height: 34px;
+  height: 34px;
+  resize: vertical;
+}
+
+.content-field-compact small {
+  font-size: 8px;
+}
+
+.content-image-field {
+  gap: 8px;
+}
+
+.content-file-name {
+  color: #65768a;
+  font-size: 10px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.content-field input[type="file"] {
+  min-height: 34px;
+  padding: 5px;
+  font-size: 10px;
+}
+
+.content-field input[type="file"]::file-selector-button {
+  margin-right: 8px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 5px;
+  background: #1d3b5a;
+  color: white;
+  font: 700 10px Inter, sans-serif;
+  cursor: pointer;
+}
+
+.content-field input[type="file"]::file-selector-button:hover {
+  background: #e58a32;
+}
+
+.content-image-preview {
+  width: auto;
+  max-width: 100%;
+  max-height: 100px;
+  border: 1px solid #d5dee7;
+  border-radius: 6px;
+  object-fit: contain;
 }
 
 .content-checkbox {
