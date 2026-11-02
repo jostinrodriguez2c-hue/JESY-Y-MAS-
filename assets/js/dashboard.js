@@ -14,7 +14,23 @@ const decisionPasscode = document.querySelector("#decision-passcode");
 const decisionError = document.querySelector("#decision-error");
 const decisionConfirm = document.querySelector("#decision-confirm");
 const decisionCancel = document.querySelector("#decision-cancel");
+const contentManagement = document.querySelector("#content-management");
+const managementStatus = document.querySelector("#management-status");
+const projectsTable = document.querySelector("#projects-table");
+const servicesTable = document.querySelector("#services-table");
+const contentDialog = document.querySelector("#content-dialog");
+const contentForm = document.querySelector("#content-form");
+const contentDialogTitle = document.querySelector("#content-dialog-title");
+const contentFields = document.querySelector("#content-fields");
+const contentError = document.querySelector("#content-error");
+const contentSave = document.querySelector("#content-save");
+const deleteDialog = document.querySelector("#delete-dialog");
+const deleteDescription = document.querySelector("#delete-description");
+const deleteError = document.querySelector("#delete-error");
+const deleteConfirm = document.querySelector("#delete-confirm");
 let pendingDecision = null;
+let editingContent = null;
+let deletingContent = null;
 
 async function init() {
   if (!isSupabaseConfigured || !supabase) {
@@ -36,9 +52,298 @@ async function init() {
   }
 
   welcome.textContent = `Sesión iniciada: ${user.email} · Rol: ${role}`;
+  if (role === "admin" || role === "superadmin") {
+    contentManagement.hidden = false;
+    await loadContentManagement();
+  }
 
   await loadDashboard();
 }
+
+async function loadContentManagement() {
+  managementStatus.textContent = "Cargando proyectos y servicios...";
+  managementStatus.classList.remove("error");
+  const [projects, services] = await Promise.all([
+    supabase.from("projects")
+      .select("id, name, description, location, service_type, status, completed_on, image_urls, published")
+      .order("created_at", { ascending: false }),
+    supabase.from("services")
+      .select("id, name, description, image_url, active")
+      .order("created_at", { ascending: true })
+  ]);
+
+  if (projects.error || services.error) {
+    console.error("No se pudieron cargar los datos editables:", {
+      projects: projects.error,
+      services: services.error
+    });
+    managementStatus.textContent = "No se pudieron cargar proyectos o servicios. Revisa las políticas RLS y columnas de Supabase.";
+    managementStatus.classList.add("error");
+    if (projects.error) projectsTable.replaceChildren(makeTableMessage("Error al cargar proyectos.", 5));
+    if (services.error) servicesTable.replaceChildren(makeTableMessage("Error al cargar servicios.", 4));
+    return;
+  }
+
+  renderManagedProjects(projects.data);
+  renderManagedServices(services.data);
+  managementStatus.textContent = "";
+}
+
+function makeTableMessage(message, columnCount) {
+  const row = document.createElement("tr");
+  const cell = document.createElement("td");
+  cell.colSpan = columnCount;
+  cell.textContent = message;
+  row.append(cell);
+  return row;
+}
+
+function renderManagedProjects(projects) {
+  projectsTable.replaceChildren();
+  if (!projects.length) {
+    projectsTable.append(makeTableMessage("Aún no hay proyectos. Usa “Agregar proyecto” para crear el primero.", 5));
+    return;
+  }
+
+  projects.forEach((project) => {
+    const row = document.createElement("tr");
+    appendCell(row, project.name);
+    appendCell(row, project.location);
+    appendCell(row, project.status);
+    appendCell(row, project.published ? "Publicado" : "Borrador");
+    const actions = document.createElement("td");
+    actions.className = "management-actions";
+    actions.append(
+      makeContentAction("Editar", () => openContentDialog("project", project)),
+      makeContentAction("Eliminar", () => openDeleteDialog("project", project))
+    );
+    row.append(actions);
+    projectsTable.append(row);
+  });
+}
+
+function renderManagedServices(services) {
+  servicesTable.replaceChildren();
+  if (!services.length) {
+    servicesTable.append(makeTableMessage("Aún no hay servicios. Usa “Agregar servicio” para crear el primero.", 4));
+    return;
+  }
+
+  services.forEach((service) => {
+    const row = document.createElement("tr");
+    appendCell(row, service.name);
+    appendCell(row, service.description);
+    appendCell(row, service.active ? "Publicado" : "Oculto");
+    const actions = document.createElement("td");
+    actions.className = "management-actions";
+    actions.append(
+      makeContentAction("Editar", () => openContentDialog("service", service)),
+      makeContentAction("Eliminar", () => openDeleteDialog("service", service))
+    );
+    row.append(actions);
+    servicesTable.append(row);
+  });
+}
+
+function makeContentAction(label, action) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = `management-action ${label === "Eliminar" ? "management-delete" : ""}`;
+  button.textContent = label;
+  button.addEventListener("click", action);
+  return button;
+}
+
+function addContentField({ name, label, value = "", type = "text", required = false, multiline = false, help = "" }) {
+  const wrapper = document.createElement("label");
+  wrapper.className = "content-field";
+  wrapper.textContent = label;
+  const input = multiline ? document.createElement("textarea") : document.createElement("input");
+  input.name = name;
+  input.value = value ?? "";
+  if (multiline) {
+    input.rows = name === "description" ? 4 : 3;
+  } else {
+    input.type = type;
+  }
+  input.required = required;
+  if (type === "url") input.placeholder = "https://...";
+  wrapper.append(input);
+  if (help) {
+    const note = document.createElement("small");
+    note.textContent = help;
+    wrapper.append(note);
+  }
+  contentFields.append(wrapper);
+  return input;
+}
+
+function addContentCheckbox({ name, label, checked }) {
+  const wrapper = document.createElement("label");
+  wrapper.className = "content-checkbox";
+  const input = document.createElement("input");
+  input.name = name;
+  input.type = "checkbox";
+  input.checked = Boolean(checked);
+  const text = document.createElement("span");
+  text.textContent = label;
+  wrapper.append(input, text);
+  contentFields.append(wrapper);
+}
+
+function openContentDialog(type, item = null) {
+  editingContent = { type, id: item?.id ?? null };
+  contentFields.replaceChildren();
+  contentError.textContent = "";
+  contentDialogTitle.textContent = item
+    ? `Editar ${type === "project" ? "proyecto" : "servicio"}`
+    : `Agregar ${type === "project" ? "proyecto" : "servicio"}`;
+
+  if (type === "project") {
+    addContentField({ name: "name", label: "Nombre del proyecto *", value: item?.name, required: true });
+    addContentField({ name: "description", label: "Descripción *", value: item?.description, multiline: true, required: true });
+    addContentField({ name: "location", label: "Ubicación", value: item?.location });
+    addContentField({ name: "service_type", label: "Tipo de trabajo", value: item?.service_type });
+    addContentField({ name: "status", label: "Estado del proyecto", value: item?.status || "completado" });
+    addContentField({ name: "completed_on", label: "Fecha de realización", value: item?.completed_on, type: "date" });
+    addContentField({
+      name: "image_urls",
+      label: "Enlaces de fotografías",
+      value: item?.image_urls?.join("\n"),
+      multiline: true,
+      help: "Pega una URL http(s) por línea. Para mostrar imágenes, usa enlaces públicos."
+    });
+    addContentCheckbox({ name: "published", label: "Mostrar este proyecto en la página pública", checked: item?.published ?? false });
+  } else {
+    addContentField({ name: "name", label: "Nombre del servicio *", value: item?.name, required: true });
+    addContentField({ name: "description", label: "Descripción *", value: item?.description, multiline: true, required: true });
+    addContentField({ name: "image_url", label: "Enlace de imagen", value: item?.image_url, type: "url" });
+    addContentCheckbox({ name: "active", label: "Mostrar este servicio en la página pública", checked: item?.active ?? true });
+  }
+
+  contentSave.textContent = item ? "Guardar cambios" : "Agregar";
+  contentSave.disabled = false;
+  contentDialog.showModal();
+  contentFields.querySelector("input, textarea")?.focus();
+}
+
+function readContentForm() {
+  const formData = new FormData(contentForm);
+  if (editingContent.type === "project") {
+    const imageUrls = String(formData.get("image_urls") || "")
+      .split(/\r?\n/)
+      .map((url) => url.trim())
+      .filter(Boolean);
+    if (imageUrls.some((url) => !/^https?:\/\//i.test(url))) {
+      throw new Error("Cada imagen debe tener un enlace que empiece con http:// o https://.");
+    }
+    return {
+      name: String(formData.get("name") || "").trim(),
+      description: String(formData.get("description") || "").trim(),
+      location: String(formData.get("location") || "").trim(),
+      service_type: String(formData.get("service_type") || "").trim(),
+      status: String(formData.get("status") || "completado").trim(),
+      completed_on: String(formData.get("completed_on") || "") || null,
+      image_urls: imageUrls,
+      published: formData.get("published") === "on"
+    };
+  }
+
+  const imageUrl = String(formData.get("image_url") || "").trim();
+  if (imageUrl && !/^https?:\/\//i.test(imageUrl)) {
+    throw new Error("El enlace de imagen debe empezar con http:// o https://.");
+  }
+  return {
+    name: String(formData.get("name") || "").trim(),
+    description: String(formData.get("description") || "").trim(),
+    image_url: imageUrl || null,
+    active: formData.get("active") === "on"
+  };
+}
+
+contentForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!editingContent) return;
+  contentError.textContent = "";
+  let payload;
+  try {
+    payload = readContentForm();
+    if (!payload.name || !payload.description) {
+      throw new Error("Completa el nombre y la descripción.");
+    }
+  } catch (error) {
+    contentError.textContent = error.message;
+    return;
+  }
+
+  contentSave.disabled = true;
+  contentSave.textContent = "Guardando...";
+  const table = editingContent.type === "project" ? "projects" : "services";
+  const query = editingContent.id
+    ? supabase.from(table).update({ ...payload, updated_at: new Date().toISOString() }).eq("id", editingContent.id)
+    : supabase.from(table).insert(payload);
+  const { error } = await query;
+  if (error) {
+    console.error(`No se pudo guardar ${editingContent.type}:`, error);
+    contentError.textContent = "No se pudo guardar. Revisa los permisos RLS y vuelve a intentarlo.";
+    contentSave.disabled = false;
+    contentSave.textContent = editingContent.id ? "Guardar cambios" : "Agregar";
+    return;
+  }
+
+  contentDialog.close();
+  editingContent = null;
+  await Promise.all([loadContentManagement(), loadDashboard()]);
+  managementStatus.textContent = "Cambios guardados.";
+});
+
+function openDeleteDialog(type, item) {
+  deletingContent = { type, item };
+  deleteError.textContent = "";
+  deleteDescription.textContent = `Se eliminará definitivamente "${item.name}". Esta acción no se puede deshacer.`;
+  deleteDialog.showModal();
+}
+
+document.querySelector("#delete-form")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!deletingContent) return;
+  deleteConfirm.disabled = true;
+  deleteConfirm.textContent = "Eliminando...";
+  deleteError.textContent = "";
+  const table = deletingContent.type === "project" ? "projects" : "services";
+  const { error } = await supabase.from(table).delete().eq("id", deletingContent.item.id);
+  if (error) {
+    console.error(`No se pudo eliminar ${deletingContent.type}:`, error);
+    deleteError.textContent = "No se pudo eliminar. Comprueba los permisos y vuelve a intentarlo.";
+    deleteConfirm.disabled = false;
+    deleteConfirm.textContent = "Sí, eliminar";
+    return;
+  }
+  deleteDialog.close();
+  deletingContent = null;
+  deleteConfirm.disabled = false;
+  deleteConfirm.textContent = "Sí, eliminar";
+  await Promise.all([loadContentManagement(), loadDashboard()]);
+  managementStatus.textContent = "Elemento eliminado.";
+});
+
+document.querySelector("#add-project")?.addEventListener("click", () => openContentDialog("project"));
+document.querySelector("#add-service")?.addEventListener("click", () => openContentDialog("service"));
+document.querySelector("#content-cancel")?.addEventListener("click", () => contentDialog.close());
+document.querySelector("#delete-cancel")?.addEventListener("click", () => deleteDialog.close());
+contentDialog?.addEventListener("close", () => {
+  contentForm.reset();
+  contentFields.replaceChildren();
+  contentError.textContent = "";
+  contentSave.disabled = false;
+  editingContent = null;
+});
+deleteDialog?.addEventListener("close", () => {
+  deleteError.textContent = "";
+  deleteConfirm.disabled = false;
+  deleteConfirm.textContent = "Sí, eliminar";
+  deletingContent = null;
+});
 
 async function loadDashboard() {
   status.textContent = "Cargando solicitudes...";

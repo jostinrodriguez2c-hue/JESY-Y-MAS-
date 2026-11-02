@@ -225,6 +225,194 @@ main.section::before {
   background: #a86e17;
 }
 
+.management-section {
+  margin-top: 40px;
+}
+
+.management-section h2 {
+  margin: 0;
+  color: #10263d;
+  font: 800 clamp(23px, 3vw, 30px)/1.2 Montserrat, Inter, sans-serif;
+}
+
+.management-table {
+  min-width: 720px;
+}
+
+.management-table td {
+  max-width: 360px;
+  overflow-wrap: anywhere;
+}
+
+.management-actions {
+  min-width: 150px;
+  white-space: nowrap;
+}
+
+.management-action {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d5dee7;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .95);
+  color: #1d3b5a;
+  font: 700 11px Inter, sans-serif;
+  cursor: pointer;
+}
+
+.management-action + .management-action {
+  margin-left: 6px;
+}
+
+.management-action:hover {
+  border-color: #e58a32;
+  color: #b85c17;
+}
+
+.management-delete {
+  border-color: #efc5bf;
+  color: #a43d32;
+}
+
+.management-delete:hover {
+  border-color: #b7473b;
+  color: #8e2d25;
+}
+
+.content-dialog {
+  width: min(590px, calc(100% - 32px));
+}
+
+.content-dialog .decision-dialog-card {
+  max-height: min(85vh, 850px);
+  overflow: auto;
+}
+
+.content-fields {
+  display: grid;
+  gap: 13px;
+  margin-top: 19px;
+}
+
+.content-field {
+  display: grid;
+  gap: 6px;
+  color: #243a50;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.content-field input,
+.content-field textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 11px;
+  border: 1px solid #d5dee7;
+  border-radius: 8px;
+  outline: 0;
+  background: rgba(255, 255, 255, .95);
+  color: #172b42;
+  font: 400 12px Inter, sans-serif;
+  letter-spacing: normal;
+}
+
+.content-field textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.content-field input:focus,
+.content-field textarea:focus {
+  border-color: #e58a32;
+  box-shadow: 0 0 0 3px rgba(229, 138, 50, .14);
+}
+
+.content-field small {
+  color: #65768a;
+  font-size: 10px;
+  font-weight: 400;
+}
+
+.content-checkbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #34485e;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.content-checkbox input {
+  margin: 2px 0 0;
+  accent-color: #e58a32;
+}
+
+.delete-dialog-icon {
+  background: #fff0ee;
+  color: #a43d32;
+}
+
+.delete-confirm-button {
+  background: #b7473b;
+}
+
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 28px;
+}
+
+.catalog-grid .project-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.catalog-grid .project-card h2 {
+  margin: 17px 20px 8px;
+  color: #14283f;
+  font: 700 18px/1.3 Montserrat, Inter, sans-serif;
+}
+
+.catalog-grid .project-card p {
+  margin: 0 20px 14px;
+}
+
+.catalog-grid .project-card .catalog-meta {
+  padding-top: 12px;
+  border-top: 1px solid #e5eaf0;
+  color: #65768a;
+  font-size: 11px;
+}
+
+.catalog-image {
+  display: block;
+  width: 100%;
+  height: 210px;
+  object-fit: cover;
+  background: #e6ebef;
+}
+
+.service-card .catalog-image {
+  margin: -24px -24px 18px;
+  width: calc(100% + 48px);
+  height: 180px;
+}
+
+.catalog-message,
+.catalog-intro {
+  color: #34485e;
+}
+
+.catalog-grid > .catalog-message,
+.service-grid > .catalog-message {
+  grid-column: 1 / -1;
+  padding: 22px;
+  border: 1px solid rgba(255, 255, 255, .75);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, .86);
+}
+
 @media (max-width: 700px) {
   body {
     background-attachment: scroll;
@@ -232,5 +420,9 @@ main.section::before {
 
   .decision-dialog-card {
     padding: 27px 22px;
+  }
+
+  .catalog-grid {
+    grid-template-columns: 1fr;
   }
 }
