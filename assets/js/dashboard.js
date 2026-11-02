@@ -67,6 +67,7 @@ const roleManagementStatus = document.querySelector("#role-management-status");
 const refreshRoleUsers = document.querySelector("#refresh-role-users");
 const rolePanels = document.querySelectorAll("[data-role-panel]");
 const rolePanelButtons = document.querySelectorAll("[data-role-panel-button]");
+const roleDefinitionAccessNote = document.querySelector("#role-definition-access-note");
 const addRoleForm = document.querySelector("#add-role-form");
 const addRoleName = document.querySelector("#add-role-name");
 const addRolePermissions = document.querySelector("#add-role-permissions");
@@ -481,14 +482,42 @@ function renderAdminRoleUsers() {
     add.textContent = "Agregar rol";
     const isCurrentUser = user.user_id === currentUserId;
     const isPrimaryOwner = user.is_primary_superadmin;
+    const assignedRoles = user.assigned_roles || [];
     select.disabled = isCurrentUser || isPrimaryOwner || !hasPermission("role_assignments.manage");
     add.disabled = true;
-    if (isCurrentUser) add.title = "No puedes cambiar tus propios roles.";
-    if (isPrimaryOwner) add.title = "Los roles del superadmin principal están protegidos.";
+    const changeBlockReason = isCurrentUser
+      ? "No puedes cambiar tus propios roles."
+      : isPrimaryOwner
+        ? "Los roles del superadmin principal están protegidos."
+        : !hasPermission("role_assignments.manage")
+          ? "Tu cuenta no tiene permiso para asignar roles."
+          : "";
+    select.title = changeBlockReason || "Selecciona un rol para agregarlo o quitarlo.";
+    add.title = changeBlockReason || "Selecciona un rol que aún no tenga esta cuenta.";
+    remove.title = changeBlockReason
+      || (assignedRoles.length <= 1
+        ? "Cada cuenta debe conservar al menos un rol."
+        : "Selecciona uno de los roles asignados para quitarlo.");
     select.addEventListener("change", () => {
-      const assignedRoles = user.assigned_roles || [];
       add.disabled = select.disabled || !select.value || assignedRoles.includes(select.value);
-      remove.disabled = select.disabled || !select.value || !assignedRoles.includes(select.value);
+      remove.disabled = select.disabled
+        || assignedRoles.length <= 1
+        || !select.value
+        || !assignedRoles.includes(select.value);
+      add.title = changeBlockReason
+        || (!select.value
+          ? "Selecciona un rol para agregarlo."
+          : assignedRoles.includes(select.value)
+            ? "Esta cuenta ya tiene ese rol."
+            : "Haz clic para agregar el rol seleccionado.");
+      remove.title = changeBlockReason
+        || (assignedRoles.length <= 1
+          ? "Cada cuenta debe conservar al menos un rol."
+          : !select.value
+            ? "Selecciona uno de los roles asignados para quitarlo."
+            : !assignedRoles.includes(select.value)
+              ? "La cuenta no tiene asignado ese rol."
+              : "Haz clic para quitar el rol seleccionado.");
     });
     add.addEventListener("click", () => addUserRole(user, select, add));
 
@@ -528,8 +557,14 @@ async function loadRoleManagement() {
   adminRoles = rolesResult.data || [];
   adminRoleUsers = usersResult.data || [];
   rolePanelButtons.forEach((button) => {
-    button.hidden = !canManageSuperadminRole && button.dataset.rolePanelButton !== "assign";
+    const requiresPrimarySuperadmin = button.dataset.rolePanelButton !== "assign";
+    button.hidden = false;
+    button.disabled = requiresPrimarySuperadmin && !canManageSuperadminRole;
+    button.title = button.disabled
+      ? "Solo el superadmin principal puede gestionar definiciones de roles."
+      : "";
   });
+  roleDefinitionAccessNote.hidden = canManageSuperadminRole;
   if (!canManageSuperadminRole) showRolePanel("assign");
   updateRoleSelectors();
   renderAdminRoleUsers();
@@ -537,6 +572,8 @@ async function loadRoleManagement() {
 }
 
 function showRolePanel(panelName) {
+  if (!canManageSuperadminRole && panelName !== "assign") return;
+
   rolePanels.forEach((panel) => {
     panel.hidden = panel.dataset.rolePanel !== panelName;
   });
@@ -653,9 +690,9 @@ async function addUserRole(user, select, button) {
 
   if (error) {
     console.error("No se pudo agregar el rol:", error);
+    await loadRoleManagement();
     roleManagementStatus.textContent = `No se pudo agregar el rol: ${error.message}`;
     roleManagementStatus.classList.add("error");
-    await loadRoleManagement();
     return;
   }
 
@@ -679,10 +716,10 @@ async function removeUserRole(user, select, button, roleKey = select.value) {
   });
   if (error) {
     console.error("No se pudo quitar el rol:", error);
+    await loadRoleManagement();
     roleManagementStatus.textContent = `No se pudo quitar el rol: ${error.message}`;
     roleManagementStatus.classList.add("error");
     if (assignedRolesDialog.open) assignedRolesStatus.textContent = error.message;
-    await loadRoleManagement();
     return;
   }
 
@@ -729,7 +766,11 @@ function renderAssignedRoles(user) {
     remove.disabled = user.user_id === currentUserId
       || user.is_primary_superadmin
       || (roleKey === "superadmin" && !canManageSuperadminRole)
+      || assignedRoles.length <= 1
       || !hasPermission("role_assignments.manage");
+    if (assignedRoles.length <= 1) {
+      remove.title = "Cada cuenta debe conservar al menos un rol.";
+    }
     remove.addEventListener("click", async () => {
       await removeUserRole(user, document.createElement("select"), remove, roleKey);
     });

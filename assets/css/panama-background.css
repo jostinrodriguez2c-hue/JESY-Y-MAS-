@@ -1316,6 +1316,19 @@ body.admin-body .dashboard-admin-actions .btn {
   font-size: 10px;
 }
 
+.role-management-actions .btn:disabled,
+.assigned-role-item .btn:disabled {
+  cursor: not-allowed;
+  filter: grayscale(.65);
+  opacity: .48;
+  transform: none;
+}
+
+.role-management-table select:disabled {
+  cursor: not-allowed;
+  opacity: .62;
+}
+
 .role-management-user-roles {
   display: block;
   max-width: 160px;

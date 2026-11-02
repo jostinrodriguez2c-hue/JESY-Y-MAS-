@@ -120,6 +120,7 @@
         <button class="btn btn-dark" type="button" data-role-panel-button="delete">Eliminar roles</button>
         <button class="btn btn-dark" type="button" data-role-panel-button="assign">Asignar roles</button>
       </nav>
+      <p id="role-definition-access-note" class="muted" role="status" hidden>Estas opciones requieren que tu cuenta esté configurada como superadmin principal en Supabase.</p>
       <section class="role-management-panel" data-role-panel="add" aria-labelledby="add-role-heading">
         <h3 id="add-role-heading">Agregar un rol</h3>
         <form id="add-role-form" class="role-editor-form">
@@ -152,6 +153,7 @@
       </section>
       <section class="role-management-panel" data-role-panel="assign" aria-labelledby="assign-role-heading" hidden>
         <h3 id="assign-role-heading">Asignar roles a las cuentas</h3>
+        <p class="muted">Selecciona un rol en la tabla para agregarlo o quitarlo. No puedes cambiar tus propios roles ni los del superadmin principal; cada cuenta debe conservar al menos un rol.</p>
         <div class="requests-table-wrap">
           <table class="requests-table role-management-table">
             <thead><tr><th>Nombre</th><th>Correo</th><th>Agregar rol</th><th>Acciones</th></tr></thead>
@@ -296,6 +298,6 @@
       </div>
     </form>
   </dialog>
-  <script type="module" src="../assets/js/dashboard.js?v=20261102-role-permissions"></script>
+  <script type="module" src="../assets/js/dashboard.js?v=20261102-role-assignment-fix"></script>
 </body>
 </html>
