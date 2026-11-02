@@ -15,16 +15,15 @@ async function init() {
     return;
   }
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles").select("full_name, role").eq("id", user.id).single();
+  const { data: role, error: roleError } = await supabase.rpc("current_admin_role");
 
-  if (profileError || !profile || !["superadmin", "admin", "editor", "support"].includes(profile.role)) {
+  if (roleError || !["superadmin", "admin", "soporte"].includes(role)) {
     await supabase.auth.signOut();
     window.location.href = "login.html";
     return;
   }
 
-  welcome.textContent = `Sesión iniciada: ${profile.full_name || user.email} · Rol: ${profile.role}`;
+  welcome.textContent = `Sesión iniciada: ${user.email} · Rol: ${role}`;
 
   const [quotes, projects, services] = await Promise.all([
     supabase.from("quote_requests").select("id", { count: "exact", head: true }),
