@@ -3,8 +3,8 @@
 // NUNCA coloques aquí la clave service_role.
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
-const SUPABASE_URL = "https://TU-PROYECTO.supabase.co";
-const SUPABASE_ANON_KEY = "TU_CLAVE_ANON_O_PUBLISHABLE";
+const SUPABASE_URL = "https://xolmulhkvcthxbwsgjto.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_W0LEQMIjN0ylgrY9Uky8nQ_ttgq5e32";
 
 const configured =
   SUPABASE_URL.startsWith("https://") &&
