@@ -14,6 +14,34 @@ body.admin-body {
     url("../images/panama-city.png");
 }
 
+main.section {
+  position: relative;
+  isolation: isolate;
+}
+
+main.section::before {
+  position: absolute;
+  z-index: -1;
+  inset: 18px 0;
+  border: 1px solid rgba(255, 255, 255, .72);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .82);
+  box-shadow: 0 16px 48px rgba(20, 40, 63, .12);
+  content: "";
+}
+
+.narrow h1,
+.narrow h2,
+.form-layout h1 {
+  color: #10263d;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, .75);
+}
+
+.narrow p:not(.eyebrow),
+.form-layout > div:first-child > p:not(.eyebrow) {
+  color: #34485e;
+}
+
 .site-header,
 .simple-header {
   background-color: rgba(255, 255, 255, .93);
