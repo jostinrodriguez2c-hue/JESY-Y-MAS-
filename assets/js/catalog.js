@@ -5,6 +5,27 @@ const serviceTargets = [
   { selector: "#home-services", limit: 4 }
 ];
 
+const advertisedServiceDescriptions = new Map([
+  [
+    "diseno y planos",
+    "Equipo de arquitectos e ingenieros con más de 15 años de experiencia. Ofrecemos diseño arquitectónico, estructural, eléctrico, hidráulico y mecánico; modelos BIM, presupuestos y especificaciones. Diseños personalizados, cumplimiento normativo, entrega puntual y acompañamiento durante el proyecto."
+  ],
+  [
+    "instalaciones electricas",
+    "Diagnóstico de fallos eléctricos y análisis de calidad de energía, con medición de armónicos, factor de potencia y distorsión. Incluye informe técnico. Promoción vigente: descuentos por análisis durante 7 días."
+  ]
+]);
+
+const fallbackServices = [
+  { name: "Construcción", description: "Planificación y ejecución de proyectos de construcción." },
+  { name: "Diseño y planos", description: "" },
+  { name: "Instalaciones eléctricas", description: "" },
+  { name: "Remodelaciones", description: "Renovación y mejora de espacios residenciales y comerciales." },
+  { name: "Supervisión de obras", description: "Seguimiento técnico y control de ejecución de proyectos." },
+  { name: "Obras civiles", description: "Trabajos de infraestructura y desarrollo civil." },
+  { name: "Consultoría de ingeniería", description: "Asesoría y orientación técnica para tus proyectos." }
+];
+
 serviceTargets.forEach(({ selector, limit }) => {
   const container = document.querySelector(selector);
   if (container) loadServices(container, limit);
@@ -15,7 +36,7 @@ if (projectsContainer) loadProjects(projectsContainer);
 
 async function loadServices(container, limit) {
   if (!supabase) {
-    showCatalogMessage(container, "Los servicios estarán disponibles próximamente.");
+    renderServices(container, fallbackServices.slice(0, limit || undefined));
     return;
   }
 
@@ -28,17 +49,36 @@ async function loadServices(container, limit) {
   const { data, error } = await query;
   if (error) {
     console.error("No se pudieron cargar los servicios:", error);
+    if (error.code === "42501" && error.message?.includes("has_admin_permission")) {
+      renderServices(
+        container,
+        fallbackServices.slice(0, limit || undefined),
+        "Se muestran los servicios generales; el catálogo actualizado no pudo cargarse."
+      );
+      return;
+    }
     showCatalogMessage(container, getCatalogErrorMessage(error, "servicios"));
     return;
   }
 
-  container.replaceChildren();
   if (!data.length) {
-    showCatalogMessage(container, "Próximamente publicaremos nuestros servicios.");
+    renderServices(container, fallbackServices.slice(0, limit || undefined));
     return;
   }
 
-  data.forEach((service) => {
+  renderServices(container, data);
+}
+
+function renderServices(container, services, notice = "") {
+  container.replaceChildren();
+  if (notice) {
+    const paragraph = document.createElement("p");
+    paragraph.className = "catalog-message";
+    paragraph.textContent = notice;
+    container.append(paragraph);
+  }
+
+  services.forEach((service) => {
     const card = document.createElement("article");
     card.className = "service-card";
     if (service.image_url) {
@@ -52,10 +92,19 @@ async function loadServices(container, limit) {
     const heading = document.createElement("h3");
     heading.textContent = service.name;
     const description = document.createElement("p");
-    description.textContent = service.description || "";
+    description.textContent = getServiceDescription(service);
     card.append(heading, description);
     container.append(card);
   });
+}
+
+function getServiceDescription(service) {
+  const serviceName = service.name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toLowerCase();
+  return advertisedServiceDescriptions.get(serviceName) || service.description || "";
 }
 
 async function loadProjects(container) {

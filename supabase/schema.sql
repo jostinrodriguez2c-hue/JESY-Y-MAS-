@@ -1,4 +1,4 @@
--- SOLUCIONES EXTREMAS Y MÁS - esquema inicial para Supabase
+-- INGENIERÍA Y ARQUITECTURA S.A. - esquema inicial para Supabase
 -- Ejecutar en Supabase > SQL Editor.
 -- Revisa las políticas antes de publicar. No uses la service_role key en el navegador.
 
