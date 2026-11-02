@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard | JESY Y MAS</title>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body class="admin-body">
+  <main class="container admin-dashboard">
+    <header class="admin-top">
+      <a class="brand" href="../index.html"><span class="brand-mark">J<span>+</span></span><span class="brand-copy"><strong>JESY Y MAS</strong><small>PANEL ADMINISTRATIVO</small></span></a>
+      <button id="logout-button" class="btn btn-dark" type="button">Cerrar sesión</button>
+    </header>
+    <p class="eyebrow">RESUMEN GENERAL</p>
+    <h1>Panel administrativo</h1>
+    <p id="admin-welcome" class="muted">Verificando acceso...</p>
+    <div class="dashboard-grid">
+      <article class="stat-card"><span>Solicitudes recibidas</span><strong id="quote-count">—</strong></article>
+      <article class="stat-card"><span>Proyectos publicados</span><strong id="project-count">—</strong></article>
+      <article class="stat-card"><span>Servicios activos</span><strong id="service-count">—</strong></article>
+    </div>
+    <section class="requests-section" aria-labelledby="requests-heading">
+      <div class="requests-heading">
+        <div><p class="eyebrow">COTIZACIONES</p><h2 id="requests-heading">Solicitudes recibidas</h2></div>
+        <button id="refresh-quotes" class="btn btn-dark" type="button">Actualizar</button>
+      </div>
+      <p id="dashboard-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table">
+          <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Descripción</th><th>Estado</th><th>Decisión</th></tr></thead>
+          <tbody id="quotes-table"><tr><td colspan="6">Cargando solicitudes...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="../assets/js/dashboard.js"></script>
+</body>
+</html>
