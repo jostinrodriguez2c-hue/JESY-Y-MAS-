@@ -77,6 +77,11 @@ const editRolePermissions = document.querySelector("#edit-role-permissions");
 const deleteRoleForm = document.querySelector("#delete-role-form");
 const deleteRoleSelect = document.querySelector("#delete-role-select");
 const deleteRoleAssigned = document.querySelector("#delete-role-assigned");
+const assignedRolesDialog = document.querySelector("#assigned-roles-dialog");
+const assignedRolesUser = document.querySelector("#assigned-roles-user");
+const assignedRolesList = document.querySelector("#assigned-roles-list");
+const assignedRolesStatus = document.querySelector("#assigned-roles-status");
+const closeAssignedRoles = document.querySelector("#close-assigned-roles");
 const closeAccessRequests = document.querySelector("#close-access-requests");
 const closeRoleManagement = document.querySelector("#close-role-management");
 const activityHistoryDialog = document.querySelector("#activity-history-dialog");
@@ -148,6 +153,13 @@ const permissionGroups = [
     permissions: [
       { key: "activity_history.view", label: "Ver el historial de actividad" }
     ]
+  },
+  {
+    label: "Cuentas",
+    permissions: [
+      { key: "role_assignments.view", label: "Ver cuentas y roles asignados" },
+      { key: "role_assignments.manage", label: "Agregar o quitar roles a otras cuentas" }
+    ]
   }
 ];
 const permissionRequirements = {
@@ -159,7 +171,8 @@ const permissionRequirements = {
   "services.update": ["services.view"],
   "services.delete": ["services.view"],
   "services.publish": ["services.view", "services.update"],
-  "access_requests.reject": ["access_requests.view"]
+  "access_requests.reject": ["access_requests.view"],
+  "role_assignments.manage": ["role_assignments.view"]
 };
 
 function hasPermission(permission) {
@@ -248,7 +261,7 @@ async function init() {
   requestFilterControls.hidden = !canManageRequests;
   toggleAccessRequests.hidden = !hasPermission("access_requests.view");
   toggleActivityHistory.hidden = !hasPermission("activity_history.view");
-  toggleRoleManagement.hidden = !canManageSuperadminRole;
+  toggleRoleManagement.hidden = !hasPermission("role_assignments.view");
   document.querySelector(".requests-section").hidden = !canManageRequests;
   const canViewProjects = ["view", "create", "update", "delete"].some((action) => hasPermission(`projects.${action}`));
   const canViewServices = ["view", "create", "update", "delete"].some((action) => hasPermission(`services.${action}`));
@@ -439,31 +452,59 @@ function renderAdminRoleUsers() {
     const roleCell = document.createElement("td");
     const select = document.createElement("select");
     select.className = "role-select";
-    select.setAttribute("aria-label", `Rol de ${user.full_name || user.email}`);
+    select.setAttribute("aria-label", `Agregar un rol a ${user.full_name || user.email}`);
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Selecciona un rol";
+    select.append(placeholder);
     adminRoles.forEach((role) => {
+      if (role.role_key === "superadmin" && !canManageSuperadminRole) return;
       const option = document.createElement("option");
       option.value = role.role_key;
       option.textContent = role.display_name;
-      option.selected = role.role_key === user.role;
       select.append(option);
     });
     roleCell.append(select);
+    const assignedSummary = document.createElement("span");
+    assignedSummary.className = "role-management-user-roles";
+    assignedSummary.textContent = user.assigned_roles
+      .map((key) => adminRoles.find((role) => role.role_key === key)?.display_name || key)
+      .join(", ") || "Sin roles";
+    roleCell.append(assignedSummary);
     row.append(roleCell);
 
     const actions = document.createElement("td");
     actions.className = "role-management-actions";
-    const save = document.createElement("button");
-    save.type = "button";
-    save.className = "btn btn-orange";
-    save.textContent = "Guardar";
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "btn btn-orange";
+    add.textContent = "Agregar rol";
     const isCurrentUser = user.user_id === currentUserId;
     const isPrimaryOwner = user.is_primary_superadmin;
-    select.disabled = isCurrentUser || isPrimaryOwner;
-    save.disabled = select.disabled;
-    if (isCurrentUser) save.title = "No puedes cambiar tu propio rol.";
-    if (isPrimaryOwner) save.title = "El rol del superadmin principal está protegido.";
-    save.addEventListener("click", () => updateUserRole(user, select, save));
-    actions.append(save);
+    select.disabled = isCurrentUser || isPrimaryOwner || !hasPermission("role_assignments.manage");
+    add.disabled = true;
+    if (isCurrentUser) add.title = "No puedes cambiar tus propios roles.";
+    if (isPrimaryOwner) add.title = "Los roles del superadmin principal están protegidos.";
+    select.addEventListener("change", () => {
+      const assignedRoles = user.assigned_roles || [];
+      add.disabled = select.disabled || !select.value || assignedRoles.includes(select.value);
+      remove.disabled = select.disabled || !select.value || !assignedRoles.includes(select.value);
+    });
+    add.addEventListener("click", () => addUserRole(user, select, add));
+
+    const view = document.createElement("button");
+    view.type = "button";
+    view.className = "btn btn-dark";
+    view.textContent = "Ver roles";
+    view.addEventListener("click", () => openAssignedRoles(user));
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn btn-dark management-toolbar-delete";
+    remove.textContent = "Quitar rol";
+    remove.disabled = true;
+    remove.addEventListener("click", () => removeUserRole(user, select, remove));
+    actions.append(add, view, remove);
     row.append(actions);
     roleUsersTable.append(row);
   });
@@ -486,6 +527,10 @@ async function loadRoleManagement() {
 
   adminRoles = rolesResult.data || [];
   adminRoleUsers = usersResult.data || [];
+  rolePanelButtons.forEach((button) => {
+    button.hidden = !canManageSuperadminRole && button.dataset.rolePanelButton !== "assign";
+  });
+  if (!canManageSuperadminRole) showRolePanel("assign");
   updateRoleSelectors();
   renderAdminRoleUsers();
   roleManagementStatus.textContent = "";
@@ -593,29 +638,104 @@ deleteRoleForm?.addEventListener("submit", async (event) => {
   roleManagementStatus.textContent = `Se eliminó el rol “${role.display_name}”.`;
 });
 
-async function updateUserRole(user, select, button) {
-  if (select.value === user.role) return;
+async function addUserRole(user, select, button) {
+  const roleKey = select.value;
+  if (!roleKey || user.assigned_roles.includes(roleKey)) return;
   button.disabled = true;
   select.disabled = true;
-  roleManagementStatus.textContent = "Guardando rol...";
+  roleManagementStatus.textContent = "Agregando rol...";
   roleManagementStatus.classList.remove("error");
 
-  const { error } = await supabase.rpc("set_admin_user_role", {
+  const { error } = await supabase.rpc("assign_admin_user_role", {
     p_user_id: user.user_id,
-    p_role: select.value
+    p_role: roleKey
   });
 
   if (error) {
-    console.error("No se pudo actualizar el rol:", error);
-    roleManagementStatus.textContent = `No se pudo actualizar el rol: ${error.message}`;
+    console.error("No se pudo agregar el rol:", error);
+    roleManagementStatus.textContent = `No se pudo agregar el rol: ${error.message}`;
     roleManagementStatus.classList.add("error");
-    button.disabled = false;
-    select.disabled = false;
+    await loadRoleManagement();
     return;
   }
 
-  roleManagementStatus.textContent = `Rol actualizado para ${user.full_name || user.email}.`;
+  const displayName = adminRoles.find((role) => role.role_key === roleKey)?.display_name || roleKey;
   await loadRoleManagement();
+  roleManagementStatus.textContent = `Se agregó “${displayName}” a ${user.full_name || user.email}.`;
+}
+
+async function removeUserRole(user, select, button, roleKey = select.value) {
+  if (!roleKey || !user.assigned_roles.includes(roleKey)) return;
+  const role = adminRoles.find((entry) => entry.role_key === roleKey);
+  if (!window.confirm(`¿Quitar el rol “${role?.display_name || roleKey}” de ${user.full_name || user.email}?`)) return;
+
+  button.disabled = true;
+  select.disabled = true;
+  roleManagementStatus.textContent = "Quitando rol...";
+  roleManagementStatus.classList.remove("error");
+  const { error } = await supabase.rpc("remove_admin_user_role", {
+    p_user_id: user.user_id,
+    p_role: roleKey
+  });
+  if (error) {
+    console.error("No se pudo quitar el rol:", error);
+    roleManagementStatus.textContent = `No se pudo quitar el rol: ${error.message}`;
+    roleManagementStatus.classList.add("error");
+    if (assignedRolesDialog.open) assignedRolesStatus.textContent = error.message;
+    await loadRoleManagement();
+    return;
+  }
+
+  await loadRoleManagement();
+  roleManagementStatus.textContent = `Se quitó “${role?.display_name || roleKey}” de ${user.full_name || user.email}.`;
+  if (assignedRolesDialog.open && assignedRolesDialog.dataset.userId === user.user_id) {
+    const updatedUser = adminRoleUsers.find((entry) => entry.user_id === user.user_id);
+    if (updatedUser) {
+      renderAssignedRoles(updatedUser);
+      assignedRolesStatus.textContent = `Se quitó “${role?.display_name || roleKey}”.`;
+    }
+  }
+}
+
+function openAssignedRoles(user) {
+  assignedRolesDialog.dataset.userId = user.user_id;
+  assignedRolesUser.textContent = user.full_name
+    ? `${user.full_name} · ${user.email}`
+    : user.email;
+  assignedRolesStatus.textContent = "";
+  renderAssignedRoles(user);
+  assignedRolesDialog.showModal();
+}
+
+function renderAssignedRoles(user) {
+  assignedRolesList.replaceChildren();
+  const assignedRoles = user.assigned_roles || [];
+  if (!assignedRoles.length) {
+    assignedRolesList.append(makeTableMessage("Esta cuenta no tiene roles asignados.", 1));
+    return;
+  }
+
+  assignedRoles.forEach((roleKey) => {
+    const row = document.createElement("div");
+    row.className = "assigned-role-item";
+    const label = document.createElement("span");
+    label.textContent = adminRoles.find((role) => role.role_key === roleKey)?.display_name || roleKey;
+    row.append(label);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn btn-dark management-toolbar-delete";
+    remove.textContent = "Quitar";
+    remove.disabled = user.user_id === currentUserId
+      || user.is_primary_superadmin
+      || (roleKey === "superadmin" && !canManageSuperadminRole)
+      || !hasPermission("role_assignments.manage");
+    remove.addEventListener("click", async () => {
+      await removeUserRole(user, document.createElement("select"), remove, roleKey);
+    });
+    row.append(remove);
+    assignedRolesList.append(row);
+  });
 }
 
 async function loadActivityHistory() {
@@ -1772,6 +1892,7 @@ nextActivityPage?.addEventListener("click", async () => {
 });
 closeAccessRequests?.addEventListener("click", () => accessRequestsManagement.close());
 closeRoleManagement?.addEventListener("click", () => roleManagement.close());
+closeAssignedRoles?.addEventListener("click", () => assignedRolesDialog.close());
 closeActivityHistory?.addEventListener("click", () => activityHistoryDialog.close());
 accessRequestsManagement?.addEventListener("close", () => toggleAccessRequests.setAttribute("aria-expanded", "false"));
 roleManagement?.addEventListener("close", () => toggleRoleManagement.setAttribute("aria-expanded", "false"));

@@ -112,7 +112,7 @@
           <button id="close-role-management" class="btn btn-dark" type="button">Cerrar</button>
         </div>
       </div>
-      <p class="muted">Crea roles personalizados y activa solo los permisos que necesite cada uno. Solo el superadmin principal puede administrar roles; aprobar accesos y emitir códigos sigue reservado a superadmins. El superadmin principal no se puede asignar, editar ni eliminar desde aquí.</p>
+      <p class="muted">Asigna varios roles a cada cuenta. Los administradores pueden agregar o quitar roles; crear o editar definiciones y permisos sigue reservado al superadmin principal.</p>
       <p id="role-management-status" class="form-status" role="status" aria-live="polite"></p>
       <nav class="role-management-nav" aria-label="Administrar roles">
         <button class="btn btn-dark is-selected" type="button" data-role-panel-button="add">Agregar roles</button>
@@ -154,11 +154,23 @@
         <h3 id="assign-role-heading">Asignar roles a las cuentas</h3>
         <div class="requests-table-wrap">
           <table class="requests-table role-management-table">
-            <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Agregar rol</th><th>Acciones</th></tr></thead>
             <tbody id="role-users-table"><tr><td colspan="4">Abre esta ventana para cargar las cuentas.</td></tr></tbody>
           </table>
         </div>
-        </section>
+      </section>
+    </section>
+  </dialog>
+  <dialog id="assigned-roles-dialog" class="decision-dialog assigned-roles-dialog" aria-labelledby="assigned-roles-heading">
+    <section class="decision-dialog-card assigned-roles-card">
+      <p class="eyebrow">PERSONAL</p>
+      <h2 id="assigned-roles-heading">Roles asignados</h2>
+      <p id="assigned-roles-user" class="muted"></p>
+      <div id="assigned-roles-list" class="assigned-roles-list"></div>
+      <p id="assigned-roles-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="close-assigned-roles" class="decision-cancel-button" type="button">Cerrar</button>
+      </div>
     </section>
   </dialog>
   <dialog id="activity-history-dialog" class="decision-dialog admin-management-dialog" aria-labelledby="activity-history-heading">

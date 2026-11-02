@@ -1296,7 +1296,7 @@ body.admin-body .dashboard-admin-actions .btn {
 }
 
 .role-management-table {
-  min-width: 620px;
+  min-width: 760px;
 }
 
 .role-select {
@@ -1305,7 +1305,58 @@ body.admin-body .dashboard-admin-actions .btn {
 }
 
 .role-management-actions {
-  min-width: 110px;
+  min-width: 250px;
+  white-space: nowrap;
+}
+
+.role-management-actions .btn {
+  min-height: 34px;
+  margin: 3px;
+  padding: 6px 9px;
+  font-size: 10px;
+}
+
+.role-management-user-roles {
+  display: block;
+  max-width: 160px;
+  margin-top: 5px;
+  color: #66758a;
+  font-size: 10px;
+  white-space: normal;
+}
+
+.assigned-roles-dialog {
+  width: min(520px, calc(100% - 32px));
+}
+
+.assigned-roles-card h2 {
+  margin-top: 0;
+}
+
+.assigned-roles-list {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+
+.assigned-role-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(95, 116, 139, .25);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .75);
+  color: #29435d;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.assigned-role-item .btn {
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 10px;
 }
 
 .role-management-nav {
@@ -1318,6 +1369,12 @@ body.admin-body .dashboard-admin-actions .btn {
 .role-management-nav .is-selected {
   border-color: #e58a32;
   color: #b95d13;
+}
+
+.role-management-nav .btn {
+  min-height: 34px;
+  padding: 6px 11px;
+  font-size: 11px;
 }
 
 .role-management-panel {
@@ -1376,7 +1433,21 @@ body.admin-body .dashboard-admin-actions .btn {
 }
 
 .role-permission-option input {
-  margin-top: 3px;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  margin: 2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  outline: auto;
+  background: transparent;
+  color: initial;
+  color-scheme: light;
+  font: inherit;
+  letter-spacing: normal;
+  accent-color: #e58a32;
 }
 
 .access-code-value {

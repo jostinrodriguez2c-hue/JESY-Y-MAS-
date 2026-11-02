@@ -34,9 +34,30 @@ insert into public.admin_roles (role_key, display_name, permissions, is_system)
 values
   ('support', 'Soporte', '{"quotes.view":true}'::jsonb, true),
   ('editor', 'Editor', '{"projects.view":true,"projects.create":true,"projects.update":true,"projects.publish":true,"services.view":true,"services.create":true,"services.update":true,"services.publish":true}'::jsonb, true),
-  ('admin', 'Admin', '{"quotes.view":true,"quotes.update":true,"quotes.hide":true,"projects.view":true,"projects.create":true,"projects.update":true,"projects.delete":true,"projects.publish":true,"services.view":true,"services.create":true,"services.update":true,"services.delete":true,"services.publish":true,"access_requests.view":true,"access_requests.reject":true,"activity_history.view":true}'::jsonb, true),
-  ('superadmin', 'Superadmin', '{"quotes.view":true,"quotes.update":true,"quotes.hide":true,"projects.view":true,"projects.create":true,"projects.update":true,"projects.delete":true,"projects.publish":true,"services.view":true,"services.create":true,"services.update":true,"services.delete":true,"services.publish":true,"access_requests.view":true,"access_requests.reject":true,"activity_history.view":true}'::jsonb, true)
+  ('admin', 'Admin', '{"quotes.view":true,"quotes.update":true,"quotes.hide":true,"projects.view":true,"projects.create":true,"projects.update":true,"projects.delete":true,"projects.publish":true,"services.view":true,"services.create":true,"services.update":true,"services.delete":true,"services.publish":true,"access_requests.view":true,"access_requests.reject":true,"activity_history.view":true,"role_assignments.view":true,"role_assignments.manage":true}'::jsonb, true),
+  ('superadmin', 'Superadmin', '{"quotes.view":true,"quotes.update":true,"quotes.hide":true,"projects.view":true,"projects.create":true,"projects.update":true,"projects.delete":true,"projects.publish":true,"services.view":true,"services.create":true,"services.update":true,"services.delete":true,"services.publish":true,"access_requests.view":true,"access_requests.reject":true,"activity_history.view":true,"role_assignments.view":true,"role_assignments.manage":true}'::jsonb, true)
 on conflict (role_key) do nothing;
+
+update public.admin_roles
+set permissions = permissions || '{"role_assignments.view":true,"role_assignments.manage":true}'::jsonb
+where role_key in ('admin', 'superadmin');
+
+create table if not exists public.admin_user_roles (
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  role_key text not null references public.admin_roles(role_key) on delete restrict,
+  assigned_by uuid references public.profiles(id),
+  assigned_at timestamptz not null default now(),
+  primary key (user_id, role_key)
+);
+
+insert into public.admin_user_roles (user_id, role_key)
+select profile.id, profile.role
+from public.profiles as profile
+join public.admin_roles as role on role.role_key = profile.role
+on conflict (user_id, role_key) do nothing;
+
+alter table public.admin_user_roles enable row level security;
+revoke all on public.admin_user_roles from anon, authenticated;
 
 alter table public.admin_roles enable row level security;
 revoke all on public.admin_roles from anon, authenticated;
@@ -57,7 +78,7 @@ as $$
         'projects.view', 'projects.create', 'projects.update', 'projects.delete', 'projects.publish',
         'services.view', 'services.create', 'services.update', 'services.delete', 'services.publish',
         'access_requests.view', 'access_requests.reject',
-        'activity_history.view'
+        'activity_history.view', 'role_assignments.view', 'role_assignments.manage'
       )
       or jsonb_typeof(permission.value) <> 'boolean'
     )
@@ -89,6 +110,10 @@ as $$
     and (
       p_permissions -> 'access_requests.reject' is distinct from 'true'::jsonb
       or p_permissions -> 'access_requests.view' = 'true'::jsonb
+    )
+    and (
+      p_permissions -> 'role_assignments.manage' is distinct from 'true'::jsonb
+      or p_permissions -> 'role_assignments.view' = 'true'::jsonb
     ),
     false
   )
@@ -613,5 +638,829 @@ grant execute on function public.list_admin_role_users() to authenticated;
 grant execute on function public.set_admin_user_role(uuid, text) to authenticated;
 grant execute on function public.list_admin_activity(integer, integer) to authenticated;
 grant execute on function public.reject_admin_access_request(uuid) to authenticated;
+
+create or replace function public.access_admin_role()
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when exists (
+      select 1 from public.admin_user_roles as assigned
+      where assigned.user_id = (select auth.uid())
+    ) then coalesce(
+      (
+        select assigned.role_key
+        from public.admin_user_roles as assigned
+        where assigned.user_id = (select auth.uid())
+          and assigned.role_key in ('superadmin', 'admin', 'editor', 'support')
+        order by case assigned.role_key
+          when 'superadmin' then 1
+          when 'admin' then 2
+          when 'editor' then 3
+          else 4
+        end
+        limit 1
+      ),
+      'support'
+    )
+    else (
+      select profile.role::text
+      from public.profiles as profile
+      where profile.id = (select auth.uid())
+    )
+  end
+$$;
+
+create or replace function public.has_admin_permission(p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (
+      select bool_or((role.permissions ->> p_permission)::boolean)
+      from public.admin_user_roles as assigned
+      join public.admin_roles as role on role.role_key = assigned.role_key
+      where assigned.user_id = (select auth.uid())
+        and jsonb_typeof(role.permissions -> p_permission) = 'boolean'
+        and (
+          p_permission not in ('role_assignments.view', 'role_assignments.manage')
+          or public.access_admin_role() in ('admin', 'superadmin')
+        )
+    ),
+    false
+  )
+$$;
+
+create or replace function public.get_my_admin_permissions()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (
+      select jsonb_object_agg(permission.key, permission.allowed)
+      from (
+        select entry.key, bool_or(entry.value = 'true'::jsonb) as allowed
+        from public.admin_user_roles as assigned
+        join public.admin_roles as role on role.role_key = assigned.role_key
+        cross join lateral jsonb_each(role.permissions) as entry
+        where assigned.user_id = (select auth.uid())
+          and (
+            entry.key not in ('role_assignments.view', 'role_assignments.manage')
+            or public.access_admin_role() in ('admin', 'superadmin')
+          )
+        group by entry.key
+      ) as permission
+    ),
+    '{}'::jsonb
+  )
+$$;
+
+create or replace function public.list_admin_roles()
+returns table (
+  role_key text,
+  display_name text,
+  permissions jsonb,
+  is_system boolean,
+  assigned_users bigint
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_primary_superadmin()
+    and not public.has_admin_permission('role_assignments.view') then
+    raise exception 'Only admins and superadmins can view assignable roles'
+      using errcode = '42501';
+  end if;
+
+  return query
+    select role.role_key, role.display_name, role.permissions, role.is_system,
+      (select count(*) from public.admin_user_roles as assigned where assigned.role_key = role.role_key)
+    from public.admin_roles as role
+    order by role.is_system desc, role.display_name;
+end;
+$$;
+
+drop function if exists public.list_admin_role_users();
+create function public.list_admin_role_users()
+returns table (
+  user_id uuid,
+  email text,
+  full_name text,
+  role text,
+  is_primary_superadmin boolean,
+  can_manage_superadmin_role boolean,
+  assigned_roles text[]
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  primary_id uuid;
+begin
+  if not public.has_admin_permission('role_assignments.view') then
+    raise exception 'Only admins and superadmins can view assigned roles'
+      using errcode = '42501';
+  end if;
+
+  select settings.primary_superadmin_id
+    into primary_id
+    from public.admin_role_settings as settings
+    where settings.singleton = true;
+
+  return query
+    select profile.id,
+      users.email::text,
+      coalesce(profile.full_name::text, ''),
+      public.access_admin_role_for_user(profile.id),
+      profile.id = primary_id,
+      public.is_primary_superadmin(),
+      coalesce(
+        array_agg(assigned.role_key order by role.display_name)
+          filter (where assigned.role_key is not null),
+        array[]::text[]
+      )
+    from public.profiles as profile
+    join auth.users as users on users.id = profile.id
+    left join public.admin_user_roles as assigned on assigned.user_id = profile.id
+    left join public.admin_roles as role on role.role_key = assigned.role_key
+    group by profile.id, users.email, profile.full_name, profile.role
+    order by profile.full_name, users.email;
+end;
+$$;
+
+create or replace function public.access_admin_role_for_user(p_user_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when exists (
+      select 1 from public.admin_user_roles as assigned
+      where assigned.user_id = p_user_id
+    ) then coalesce(
+      (
+        select assigned.role_key
+        from public.admin_user_roles as assigned
+        where assigned.user_id = p_user_id
+          and assigned.role_key in ('superadmin', 'admin', 'editor', 'support')
+        order by case assigned.role_key
+          when 'superadmin' then 1
+          when 'admin' then 2
+          when 'editor' then 3
+          else 4
+        end
+        limit 1
+      ),
+      'support'
+    )
+    else (select profile.role::text from public.profiles as profile where profile.id = p_user_id)
+  end
+$$;
+
+create or replace function public.assign_admin_user_role(p_user_id uuid, p_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  primary_id uuid;
+  role_name text;
+begin
+  if public.access_admin_role() not in ('admin', 'superadmin')
+    or not public.has_admin_permission('role_assignments.manage') then
+    raise exception 'Only admins and superadmins can assign roles'
+      using errcode = '42501';
+  end if;
+  if p_user_id = auth.uid() then
+    raise exception 'You cannot assign roles to your own account'
+      using errcode = '42501';
+  end if;
+
+  select primary_superadmin_id into primary_id
+  from public.admin_role_settings where singleton = true;
+  if p_user_id = primary_id then
+    raise exception 'The primary superadmin account is protected'
+      using errcode = '42501';
+  end if;
+  if p_role = 'superadmin' and not public.is_primary_superadmin() then
+    raise exception 'Only the primary superadmin can assign the superadmin role'
+      using errcode = '42501';
+  end if;
+
+  perform 1
+  from public.profiles
+  where id = p_user_id
+  for update;
+  if not found then
+    raise exception 'Account profile not found'
+      using errcode = 'P0002';
+  end if;
+
+  select display_name into role_name
+  from public.admin_roles where role_key = p_role;
+  if not found then
+    raise exception 'Role not found'
+      using errcode = 'P0002';
+  end if;
+
+  insert into public.admin_user_roles (user_id, role_key, assigned_by)
+  values (p_user_id, p_role, auth.uid());
+  perform public.write_admin_activity(
+    auth.uid(), 'role.assigned', 'profile', p_user_id,
+    jsonb_build_object('role', p_role, 'name', role_name)
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.remove_admin_user_role(p_user_id uuid, p_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  primary_id uuid;
+  role_name text;
+  assigned_count bigint;
+begin
+  if public.access_admin_role() not in ('admin', 'superadmin')
+    or not public.has_admin_permission('role_assignments.manage') then
+    raise exception 'Only admins and superadmins can remove roles'
+      using errcode = '42501';
+  end if;
+  if p_user_id = auth.uid() then
+    raise exception 'You cannot remove roles from your own account'
+      using errcode = '42501';
+  end if;
+
+  select primary_superadmin_id into primary_id
+  from public.admin_role_settings where singleton = true;
+  if p_user_id = primary_id then
+    raise exception 'The primary superadmin account is protected'
+      using errcode = '42501';
+  end if;
+  if p_role = 'superadmin' and not public.is_primary_superadmin() then
+    raise exception 'Only the primary superadmin can remove the superadmin role'
+      using errcode = '42501';
+  end if;
+
+  perform 1
+  from public.profiles
+  where id = p_user_id
+  for update;
+  if not found then
+    raise exception 'Account profile not found'
+      using errcode = 'P0002';
+  end if;
+
+  select display_name into role_name
+  from public.admin_roles where role_key = p_role;
+  if not found then
+    raise exception 'Role not found'
+      using errcode = 'P0002';
+  end if;
+
+  select count(*) into assigned_count
+  from public.admin_user_roles where user_id = p_user_id;
+  if assigned_count <= 1 then
+    raise exception 'Every account must keep at least one role'
+      using errcode = '23514';
+  end if;
+
+  delete from public.admin_user_roles
+  where user_id = p_user_id and role_key = p_role;
+  if not found then
+    raise exception 'The account does not have this role'
+      using errcode = 'P0002';
+  end if;
+  perform public.write_admin_activity(
+    auth.uid(), 'role.unassigned', 'profile', p_user_id,
+    jsonb_build_object('role', p_role, 'name', role_name)
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.set_admin_user_role(p_user_id uuid, p_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  return public.assign_admin_user_role(p_user_id, p_role);
+end;
+$$;
+
+create or replace function public.delete_admin_role(p_role_key text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  existing_role public.admin_roles%rowtype;
+  assigned_count bigint;
+begin
+  if not public.is_primary_superadmin() then
+    raise exception 'Only the primary superadmin can manage role definitions'
+      using errcode = '42501';
+  end if;
+  select * into existing_role
+  from public.admin_roles where role_key = p_role_key for update;
+  if not found then
+    raise exception 'Role not found'
+      using errcode = 'P0002';
+  end if;
+  if existing_role.is_system then
+    raise exception 'Built-in roles cannot be deleted'
+      using errcode = '42501';
+  end if;
+  select count(*) into assigned_count
+  from public.admin_user_roles where role_key = p_role_key;
+  if assigned_count > 0 then
+    raise exception 'Reassign all users before deleting this role'
+      using errcode = '23503';
+  end if;
+
+  delete from public.admin_roles where role_key = p_role_key;
+  perform public.write_admin_activity(
+    auth.uid(), 'role.deleted', 'admin_role', null,
+    jsonb_build_object(
+      'role', p_role_key,
+      'name', existing_role.display_name,
+      'permissions', existing_role.permissions
+    )
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, full_name, role)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    'support'
+  )
+  on conflict (id) do nothing;
+  insert into public.admin_user_roles (user_id, role_key)
+  values (new.id, 'support')
+  on conflict (user_id, role_key) do nothing;
+  perform public.write_admin_activity(
+    new.id,
+    'account.created',
+    'profile',
+    new.id,
+    jsonb_build_object('name', coalesce(new.raw_user_meta_data ->> 'full_name', ''))
+  );
+  return new;
+end;
+$$;
+
+revoke all on function public.access_admin_role_for_user(uuid) from public, anon, authenticated;
+revoke all on function public.assign_admin_user_role(uuid, text) from public, anon;
+revoke all on function public.remove_admin_user_role(uuid, text) from public, anon;
+revoke all on function public.list_admin_role_users() from public, anon;
+revoke all on function public.set_admin_user_role(uuid, text) from public, anon;
+grant execute on function public.assign_admin_user_role(uuid, text) to authenticated;
+grant execute on function public.remove_admin_user_role(uuid, text) to authenticated;
+grant execute on function public.list_admin_role_users() to authenticated;
+grant execute on function public.set_admin_user_role(uuid, text) to authenticated;
+
+create or replace function public.access_admin_role()
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when exists (
+      select 1
+      from public.admin_user_roles as assigned
+      where assigned.user_id = (select auth.uid())
+    ) then coalesce(
+      (
+        select assigned.role_key
+        from public.admin_user_roles as assigned
+        where assigned.user_id = (select auth.uid())
+          and assigned.role_key in ('superadmin', 'admin', 'editor', 'support')
+        order by case assigned.role_key
+          when 'superadmin' then 1
+          when 'admin' then 2
+          when 'editor' then 3
+          else 4
+        end
+        limit 1
+      ),
+      'support'
+    )
+    else (
+      select profile.role::text
+      from public.profiles as profile
+      where profile.id = (select auth.uid())
+    )
+  end
+$$;
+
+create or replace function public.access_admin_role_for_user(p_user_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select case
+    when exists (
+      select 1
+      from public.admin_user_roles as assigned
+      where assigned.user_id = p_user_id
+    ) then coalesce(
+      (
+        select assigned.role_key
+        from public.admin_user_roles as assigned
+        where assigned.user_id = p_user_id
+          and assigned.role_key in ('superadmin', 'admin', 'editor', 'support')
+        order by case assigned.role_key
+          when 'superadmin' then 1
+          when 'admin' then 2
+          when 'editor' then 3
+          else 4
+        end
+        limit 1
+      ),
+      'support'
+    )
+    else (select profile.role::text from public.profiles as profile where profile.id = p_user_id)
+  end
+$$;
+
+create or replace function public.has_admin_permission(p_permission text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (
+      select bool_or((role.permissions ->> p_permission)::boolean)
+      from public.admin_user_roles as assigned
+      join public.admin_roles as role on role.role_key = assigned.role_key
+      where assigned.user_id = (select auth.uid())
+        and jsonb_typeof(role.permissions -> p_permission) = 'boolean'
+        and (
+          p_permission not in ('role_assignments.view', 'role_assignments.manage')
+          or public.access_admin_role() in ('admin', 'superadmin')
+        )
+    ),
+    false
+  )
+$$;
+
+create or replace function public.get_my_admin_permissions()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select coalesce(
+    (
+      select jsonb_object_agg(permission.key, permission.allowed)
+      from (
+        select entry.key, bool_or(entry.value = 'true'::jsonb) as allowed
+        from public.admin_user_roles as assigned
+        join public.admin_roles as role on role.role_key = assigned.role_key
+        cross join lateral jsonb_each(role.permissions) as entry
+        where assigned.user_id = (select auth.uid())
+          and (
+            entry.key not in ('role_assignments.view', 'role_assignments.manage')
+            or public.access_admin_role() in ('admin', 'superadmin')
+          )
+        group by entry.key
+      ) as permission
+    ),
+    '{}'::jsonb
+  )
+$$;
+
+create or replace function public.list_admin_roles()
+returns table (
+  role_key text,
+  display_name text,
+  permissions jsonb,
+  is_system boolean,
+  assigned_users bigint
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.is_primary_superadmin()
+    and not public.has_admin_permission('role_assignments.view') then
+    raise exception 'Only admins and superadmins can view assignable roles'
+      using errcode = '42501';
+  end if;
+
+  return query
+    select role.role_key, role.display_name, role.permissions, role.is_system,
+      (select count(*) from public.admin_user_roles as assigned where assigned.role_key = role.role_key)
+    from public.admin_roles as role
+    order by role.is_system desc, role.display_name;
+end;
+$$;
+
+drop function if exists public.list_admin_role_users();
+create function public.list_admin_role_users()
+returns table (
+  user_id uuid,
+  email text,
+  full_name text,
+  role text,
+  is_primary_superadmin boolean,
+  can_manage_superadmin_role boolean,
+  assigned_roles text[]
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  primary_id uuid;
+begin
+  if not public.has_admin_permission('role_assignments.view') then
+    raise exception 'Only admins and superadmins can view assigned roles'
+      using errcode = '42501';
+  end if;
+
+  select settings.primary_superadmin_id
+    into primary_id
+    from public.admin_role_settings as settings
+    where settings.singleton = true;
+
+  return query
+    select profile.id,
+      users.email::text,
+      coalesce(profile.full_name::text, ''),
+      public.access_admin_role_for_user(profile.id),
+      profile.id = primary_id,
+      public.is_primary_superadmin(),
+      coalesce(
+        array_agg(assigned.role_key order by role.display_name)
+          filter (where assigned.role_key is not null),
+        array[]::text[]
+      )
+    from public.profiles as profile
+    join auth.users as users on users.id = profile.id
+    left join public.admin_user_roles as assigned on assigned.user_id = profile.id
+    left join public.admin_roles as role on role.role_key = assigned.role_key
+    group by profile.id, users.email, profile.full_name, profile.role
+    order by profile.full_name, users.email;
+end;
+$$;
+
+create or replace function public.assign_admin_user_role(p_user_id uuid, p_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  primary_id uuid;
+  role_name text;
+begin
+  if public.access_admin_role() not in ('admin', 'superadmin')
+    or not public.has_admin_permission('role_assignments.manage') then
+    raise exception 'Only admins and superadmins can assign roles'
+      using errcode = '42501';
+  end if;
+  if p_user_id = auth.uid() then
+    raise exception 'You cannot assign roles to your own account'
+      using errcode = '42501';
+  end if;
+
+  select primary_superadmin_id into primary_id
+  from public.admin_role_settings where singleton = true;
+  if p_user_id = primary_id then
+    raise exception 'The primary superadmin account is protected'
+      using errcode = '42501';
+  end if;
+  if p_role = 'superadmin' and not public.is_primary_superadmin() then
+    raise exception 'Only the primary superadmin can assign the superadmin role'
+      using errcode = '42501';
+  end if;
+
+  perform 1
+  from public.profiles
+  where id = p_user_id
+  for update;
+  if not found then
+    raise exception 'Account profile not found'
+      using errcode = 'P0002';
+  end if;
+
+  select display_name into role_name
+  from public.admin_roles where role_key = p_role;
+  if not found then
+    raise exception 'Role not found'
+      using errcode = 'P0002';
+  end if;
+
+  insert into public.admin_user_roles (user_id, role_key, assigned_by)
+  values (p_user_id, p_role, auth.uid());
+  perform public.write_admin_activity(
+    auth.uid(), 'role.assigned', 'profile', p_user_id,
+    jsonb_build_object('role', p_role, 'name', role_name)
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.remove_admin_user_role(p_user_id uuid, p_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  primary_id uuid;
+  role_name text;
+  assigned_count bigint;
+begin
+  if public.access_admin_role() not in ('admin', 'superadmin')
+    or not public.has_admin_permission('role_assignments.manage') then
+    raise exception 'Only admins and superadmins can remove roles'
+      using errcode = '42501';
+  end if;
+  if p_user_id = auth.uid() then
+    raise exception 'You cannot remove roles from your own account'
+      using errcode = '42501';
+  end if;
+
+  select primary_superadmin_id into primary_id
+  from public.admin_role_settings where singleton = true;
+  if p_user_id = primary_id then
+    raise exception 'The primary superadmin account is protected'
+      using errcode = '42501';
+  end if;
+  if p_role = 'superadmin' and not public.is_primary_superadmin() then
+    raise exception 'Only the primary superadmin can remove the superadmin role'
+      using errcode = '42501';
+  end if;
+
+  perform 1
+  from public.profiles
+  where id = p_user_id
+  for update;
+  if not found then
+    raise exception 'Account profile not found'
+      using errcode = 'P0002';
+  end if;
+
+  select display_name into role_name
+  from public.admin_roles where role_key = p_role;
+  if not found then
+    raise exception 'Role not found'
+      using errcode = 'P0002';
+  end if;
+
+  select count(*) into assigned_count
+  from public.admin_user_roles where user_id = p_user_id;
+  if assigned_count <= 1 then
+    raise exception 'Every account must keep at least one role'
+      using errcode = '23514';
+  end if;
+
+  delete from public.admin_user_roles
+  where user_id = p_user_id and role_key = p_role;
+  if not found then
+    raise exception 'The account does not have this role'
+      using errcode = 'P0002';
+  end if;
+  perform public.write_admin_activity(
+    auth.uid(), 'role.unassigned', 'profile', p_user_id,
+    jsonb_build_object('role', p_role, 'name', role_name)
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.set_admin_user_role(p_user_id uuid, p_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  return public.assign_admin_user_role(p_user_id, p_role);
+end;
+$$;
+
+create or replace function public.delete_admin_role(p_role_key text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  existing_role public.admin_roles%rowtype;
+  assigned_count bigint;
+begin
+  if not public.is_primary_superadmin() then
+    raise exception 'Only the primary superadmin can manage role definitions'
+      using errcode = '42501';
+  end if;
+  select * into existing_role
+  from public.admin_roles where role_key = p_role_key for update;
+  if not found then
+    raise exception 'Role not found'
+      using errcode = 'P0002';
+  end if;
+  if existing_role.is_system then
+    raise exception 'Built-in roles cannot be deleted'
+      using errcode = '42501';
+  end if;
+  select count(*) into assigned_count
+  from public.admin_user_roles where role_key = p_role_key;
+  if assigned_count > 0 then
+    raise exception 'Reassign all users before deleting this role'
+      using errcode = '23503';
+  end if;
+
+  delete from public.admin_roles where role_key = p_role_key;
+  perform public.write_admin_activity(
+    auth.uid(), 'role.deleted', 'admin_role', null,
+    jsonb_build_object(
+      'role', p_role_key,
+      'name', existing_role.display_name,
+      'permissions', existing_role.permissions
+    )
+  );
+  return true;
+end;
+$$;
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, full_name, role)
+  values (
+    new.id,
+    coalesce(new.raw_user_meta_data ->> 'full_name', ''),
+    'support'
+  )
+  on conflict (id) do nothing;
+  insert into public.admin_user_roles (user_id, role_key)
+  values (new.id, 'support')
+  on conflict (user_id, role_key) do nothing;
+  perform public.write_admin_activity(
+    new.id,
+    'account.created',
+    'profile',
+    new.id,
+    jsonb_build_object('name', coalesce(new.raw_user_meta_data ->> 'full_name', ''))
+  );
+  return new;
+end;
+$$;
+
+revoke all on function public.access_admin_role_for_user(uuid) from public, anon, authenticated;
+revoke all on function public.assign_admin_user_role(uuid, text) from public, anon;
+revoke all on function public.remove_admin_user_role(uuid, text) from public, anon;
+revoke all on function public.list_admin_role_users() from public, anon;
+revoke all on function public.set_admin_user_role(uuid, text) from public, anon;
+grant execute on function public.assign_admin_user_role(uuid, text) to authenticated;
+grant execute on function public.remove_admin_user_role(uuid, text) to authenticated;
+grant execute on function public.list_admin_role_users() to authenticated;
+grant execute on function public.set_admin_user_role(uuid, text) to authenticated;
 
 notify pgrst, 'reload schema';
