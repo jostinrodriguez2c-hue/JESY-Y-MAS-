@@ -125,6 +125,11 @@ main.section::before {
   color: #a43d32;
 }
 
+.decision-dialog.is-pending .decision-dialog-icon {
+  background: #fff5df;
+  color: #9a6715;
+}
+
 .decision-dialog-card .eyebrow {
   margin-bottom: 8px;
 }
@@ -214,6 +219,10 @@ main.section::before {
 
 .decision-dialog.is-rejecting .decision-confirm-button {
   background: #b7473b;
+}
+
+.decision-dialog.is-pending .decision-confirm-button {
+  background: #a86e17;
 }
 
 @media (max-width: 700px) {

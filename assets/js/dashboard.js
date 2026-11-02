@@ -149,9 +149,11 @@ function renderRequests(requests) {
     const actions = document.createElement("td");
     actions.className = "request-actions";
     const canAccept = request.status !== "aceptado";
+    const canPend = request.status !== "nuevo";
     const canReject = request.status !== "rechazado";
     actions.append(
       makeDecisionButton(request, "aceptado", "Aceptar", canAccept),
+      makeDecisionButton(request, "nuevo", "Pendiente", canPend),
       makeDecisionButton(request, "rechazado", "Rechazar", canReject)
     );
     row.append(actions);
@@ -193,12 +195,18 @@ function makeDecisionButton(request, decision, label, enabled) {
 function openDecisionDialog(request, decision, button) {
   pendingDecision = { request, decision, button };
   const isRejecting = decision === "rechazado";
+  const isPending = decision === "nuevo";
   decisionDialog.classList.toggle("is-rejecting", isRejecting);
-  decisionTitle.textContent = isRejecting ? "Rechazar solicitud" : "Aceptar solicitud";
-  decisionDescription.textContent = isRejecting
-    ? `Vas a rechazar la solicitud de ${request.name}. Ingresa la clave para confirmar.`
-    : `Vas a aceptar la solicitud de ${request.name}. Ingresa la clave para confirmar.`;
-  decisionConfirm.textContent = isRejecting ? "Sí, rechazar" : "Sí, aceptar";
+  decisionDialog.classList.toggle("is-pending", isPending);
+  const actionLabel = isRejecting ? "rechazar" : isPending ? "dejar pendiente" : "aceptar";
+  decisionTitle.textContent = isRejecting
+    ? "Rechazar solicitud"
+    : isPending ? "Dejar solicitud pendiente" : "Aceptar solicitud";
+  decisionDescription.textContent =
+    `Vas a ${actionLabel} la solicitud de ${request.name}. Ingresa la clave para confirmar.`;
+  decisionConfirm.textContent = isRejecting
+    ? "Sí, rechazar"
+    : isPending ? "Sí, dejar pendiente" : "Sí, aceptar";
   decisionError.textContent = "";
   decisionPasscode.value = "";
   decisionDialog.showModal();
@@ -233,7 +241,9 @@ decisionForm?.addEventListener("submit", async (event) => {
     decisionConfirm.disabled = false;
     decisionCancel.disabled = false;
     decisionPasscode.disabled = false;
-    decisionConfirm.textContent = decision === "rechazado" ? "Sí, rechazar" : "Sí, aceptar";
+    decisionConfirm.textContent = decision === "rechazado"
+      ? "Sí, rechazar"
+      : decision === "nuevo" ? "Sí, dejar pendiente" : "Sí, aceptar";
     return;
   }
 
