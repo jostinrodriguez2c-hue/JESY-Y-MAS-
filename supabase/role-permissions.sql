@@ -327,7 +327,8 @@ begin
 end;
 $$;
 
-create or replace function public.list_admin_role_users()
+drop function if exists public.list_admin_role_users();
+create function public.list_admin_role_users()
 returns table (
   user_id uuid,
   email text,
@@ -760,7 +761,9 @@ returns table (
   role text,
   is_primary_superadmin boolean,
   can_manage_superadmin_role boolean,
-  assigned_roles text[]
+  assigned_roles text[],
+  is_activated boolean,
+  account_status text
 )
 language plpgsql
 security definer
@@ -780,23 +783,53 @@ begin
     where settings.singleton = true;
 
   return query
-    select profile.id,
+    select users.id,
       users.email::text,
-      coalesce(profile.full_name::text, ''),
-      public.access_admin_role_for_user(profile.id),
-      profile.id = primary_id,
+      coalesce(profile.full_name::text, users.raw_user_meta_data ->> 'full_name', ''),
+      public.access_admin_role_for_user(users.id),
+      coalesce(profile.id = primary_id, false),
       public.is_primary_superadmin(),
       coalesce(
         array_agg(assigned.role_key order by role.display_name)
           filter (where assigned.role_key is not null),
         array[]::text[]
-      )
-    from public.profiles as profile
-    join auth.users as users on users.id = profile.id
-    left join public.admin_user_roles as assigned on assigned.user_id = profile.id
+      ),
+      (users.email_confirmed_at is not null and (users.banned_until is null or users.banned_until <= now())),
+      case
+        when users.banned_until is not null and users.banned_until > now() then 'Deshabilitada'
+        when users.email_confirmed_at is null then 'Pendiente de confirmar correo'
+        else 'Activa'
+      end
+    from auth.users as users
+    left join public.profiles as profile on profile.id = users.id
+    left join public.admin_user_roles as assigned on assigned.user_id = users.id
     left join public.admin_roles as role on role.role_key = assigned.role_key
-    group by profile.id, users.email, profile.full_name, profile.role
-    order by profile.full_name, users.email;
+    group by users.id, users.email, users.raw_user_meta_data, users.email_confirmed_at,
+      users.banned_until, profile.id, profile.full_name, profile.role
+
+    union all
+
+    select
+      null::uuid,
+      access_request.email::text,
+      access_request.full_name::text,
+      null::text,
+      false,
+      public.is_primary_superadmin(),
+      array[]::text[],
+      false,
+      case access_request.status
+        when 'approved' then 'Aprobada · pendiente de activar'
+        else 'Solicitud pendiente'
+      end
+    from public.admin_access_requests as access_request
+    where access_request.status in ('pending', 'approved')
+      and not exists (
+        select 1
+        from auth.users as users
+        where lower(users.email) = lower(access_request.email)
+      )
+    order by 3, 2;
 end;
 $$;
 
@@ -1204,7 +1237,9 @@ returns table (
   role text,
   is_primary_superadmin boolean,
   can_manage_superadmin_role boolean,
-  assigned_roles text[]
+  assigned_roles text[],
+  is_activated boolean,
+  account_status text
 )
 language plpgsql
 security definer
@@ -1224,23 +1259,53 @@ begin
     where settings.singleton = true;
 
   return query
-    select profile.id,
+    select users.id,
       users.email::text,
-      coalesce(profile.full_name::text, ''),
-      public.access_admin_role_for_user(profile.id),
-      profile.id = primary_id,
+      coalesce(profile.full_name::text, users.raw_user_meta_data ->> 'full_name', ''),
+      public.access_admin_role_for_user(users.id),
+      coalesce(profile.id = primary_id, false),
       public.is_primary_superadmin(),
       coalesce(
         array_agg(assigned.role_key order by role.display_name)
           filter (where assigned.role_key is not null),
         array[]::text[]
-      )
-    from public.profiles as profile
-    join auth.users as users on users.id = profile.id
-    left join public.admin_user_roles as assigned on assigned.user_id = profile.id
+      ),
+      (users.email_confirmed_at is not null and (users.banned_until is null or users.banned_until <= now())),
+      case
+        when users.banned_until is not null and users.banned_until > now() then 'Deshabilitada'
+        when users.email_confirmed_at is null then 'Pendiente de confirmar correo'
+        else 'Activa'
+      end
+    from auth.users as users
+    left join public.profiles as profile on profile.id = users.id
+    left join public.admin_user_roles as assigned on assigned.user_id = users.id
     left join public.admin_roles as role on role.role_key = assigned.role_key
-    group by profile.id, users.email, profile.full_name, profile.role
-    order by profile.full_name, users.email;
+    group by users.id, users.email, users.raw_user_meta_data, users.email_confirmed_at,
+      users.banned_until, profile.id, profile.full_name, profile.role
+
+    union all
+
+    select
+      null::uuid,
+      access_request.email::text,
+      access_request.full_name::text,
+      null::text,
+      false,
+      public.is_primary_superadmin(),
+      array[]::text[],
+      false,
+      case access_request.status
+        when 'approved' then 'Aprobada · pendiente de activar'
+        else 'Solicitud pendiente'
+      end
+    from public.admin_access_requests as access_request
+    where access_request.status in ('pending', 'approved')
+      and not exists (
+        select 1
+        from auth.users as users
+        where lower(users.email) = lower(access_request.email)
+      )
+    order by 3, 2;
 end;
 $$;
 

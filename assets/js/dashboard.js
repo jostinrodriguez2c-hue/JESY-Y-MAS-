@@ -441,7 +441,7 @@ function updateDeleteRoleStatus() {
 function renderAdminRoleUsers() {
   roleUsersTable.replaceChildren();
   if (!adminRoleUsers.length) {
-    roleUsersTable.append(makeTableMessage("No hay cuentas disponibles.", 4));
+    roleUsersTable.append(makeTableMessage("No hay cuentas ni solicitudes de acceso pendientes.", 5));
     return;
   }
 
@@ -449,6 +449,7 @@ function renderAdminRoleUsers() {
     const row = document.createElement("tr");
     appendCell(row, user.full_name || "—");
     appendCell(row, user.email || "—");
+    appendCell(row, user.account_status || "Estado desconocido");
 
     const roleCell = document.createElement("td");
     const select = document.createElement("select");
@@ -468,7 +469,7 @@ function renderAdminRoleUsers() {
     roleCell.append(select);
     const assignedSummary = document.createElement("span");
     assignedSummary.className = "role-management-user-roles";
-    assignedSummary.textContent = user.assigned_roles
+    assignedSummary.textContent = (user.assigned_roles || [])
       .map((key) => adminRoles.find((role) => role.role_key === key)?.display_name || key)
       .join(", ") || "Sin roles";
     roleCell.append(assignedSummary);
@@ -480,12 +481,23 @@ function renderAdminRoleUsers() {
     add.type = "button";
     add.className = "btn btn-orange";
     add.textContent = "Agregar rol";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "btn btn-dark management-toolbar-delete";
+    remove.textContent = "Quitar rol";
+    remove.disabled = true;
     const isCurrentUser = user.user_id === currentUserId;
     const isPrimaryOwner = user.is_primary_superadmin;
     const assignedRoles = user.assigned_roles || [];
-    select.disabled = isCurrentUser || isPrimaryOwner || !hasPermission("role_assignments.manage");
+    const isExistingAccount = Boolean(user.user_id);
+    select.disabled = !isExistingAccount
+      || isCurrentUser
+      || isPrimaryOwner
+      || !hasPermission("role_assignments.manage");
     add.disabled = true;
-    const changeBlockReason = isCurrentUser
+    const changeBlockReason = !isExistingAccount
+      ? "Esta solicitud aún no tiene una cuenta activada; podrás asignar roles después de que la persona cree su cuenta."
+      : isCurrentUser
       ? "No puedes cambiar tus propios roles."
       : isPrimaryOwner
         ? "Los roles del superadmin principal están protegidos."
@@ -525,13 +537,12 @@ function renderAdminRoleUsers() {
     view.type = "button";
     view.className = "btn btn-dark";
     view.textContent = "Ver roles";
+    view.disabled = !isExistingAccount;
+    if (!isExistingAccount) {
+      view.title = "La persona aún no ha activado su cuenta.";
+    }
     view.addEventListener("click", () => openAssignedRoles(user));
 
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "btn btn-dark management-toolbar-delete";
-    remove.textContent = "Quitar rol";
-    remove.disabled = true;
     remove.addEventListener("click", () => removeUserRole(user, select, remove));
     actions.append(add, view, remove);
     row.append(actions);
@@ -551,6 +562,9 @@ async function loadRoleManagement() {
     console.error("No se pudieron cargar los roles:", error);
     roleManagementStatus.textContent = `No se pudieron cargar los roles (${error.code || "error"}): ${error.message}`;
     roleManagementStatus.classList.add("error");
+    roleUsersTable.replaceChildren(
+      makeTableMessage(`No se pudieron cargar las cuentas: ${error.message}`, 5)
+    );
     return;
   }
 
@@ -677,7 +691,7 @@ deleteRoleForm?.addEventListener("submit", async (event) => {
 
 async function addUserRole(user, select, button) {
   const roleKey = select.value;
-  if (!roleKey || user.assigned_roles.includes(roleKey)) return;
+  if (!user.user_id || !roleKey || (user.assigned_roles || []).includes(roleKey)) return;
   button.disabled = true;
   select.disabled = true;
   roleManagementStatus.textContent = "Agregando rol...";
@@ -702,7 +716,7 @@ async function addUserRole(user, select, button) {
 }
 
 async function removeUserRole(user, select, button, roleKey = select.value) {
-  if (!roleKey || !user.assigned_roles.includes(roleKey)) return;
+  if (!user.user_id || !roleKey || !(user.assigned_roles || []).includes(roleKey)) return;
   const role = adminRoles.find((entry) => entry.role_key === roleKey);
   if (!window.confirm(`¿Quitar el rol “${role?.display_name || roleKey}” de ${user.full_name || user.email}?`)) return;
 

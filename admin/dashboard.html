@@ -153,11 +153,11 @@
       </section>
       <section class="role-management-panel" data-role-panel="assign" aria-labelledby="assign-role-heading" hidden>
         <h3 id="assign-role-heading">Asignar roles a las cuentas</h3>
-        <p class="muted">Selecciona un rol en la tabla para agregarlo o quitarlo. No puedes cambiar tus propios roles ni los del superadmin principal; cada cuenta debe conservar al menos un rol.</p>
+        <p class="muted">Aquí aparecen las cuentas y solicitudes pendientes de activar. Selecciona un rol para agregarlo o quitarlo de una cuenta existente. No puedes cambiar tus propios roles ni los del superadmin principal; cada cuenta debe conservar al menos un rol.</p>
         <div class="requests-table-wrap">
           <table class="requests-table role-management-table">
-            <thead><tr><th>Nombre</th><th>Correo</th><th>Agregar rol</th><th>Acciones</th></tr></thead>
-            <tbody id="role-users-table"><tr><td colspan="4">Abre esta ventana para cargar las cuentas.</td></tr></tbody>
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Estado de cuenta</th><th>Agregar rol</th><th>Acciones</th></tr></thead>
+            <tbody id="role-users-table"><tr><td colspan="5">Abre esta ventana para cargar las cuentas.</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -298,6 +298,6 @@
       </div>
     </form>
   </dialog>
-  <script type="module" src="../assets/js/dashboard.js?v=20261102-role-assignment-fix"></script>
+  <script type="module" src="../assets/js/dashboard.js?v=20261102-all-account-statuses"></script>
 </body>
 </html>
