@@ -13,16 +13,20 @@ form?.addEventListener("submit", async (event) => {
   }
 
   const data = new FormData(form);
+  const company = String(data.get("company") || "").trim();
+  const budget = String(data.get("budget") || "").trim();
+  const details = String(data.get("details") || "").trim();
   const request = {
-    full_name: String(data.get("name") || "").trim(),
-    company: String(data.get("company") || "").trim() || null,
+    name: String(data.get("name") || "").trim(),
     email: String(data.get("email") || "").trim(),
     phone: String(data.get("phone") || "").trim(),
     location: String(data.get("location") || "").trim(),
     service: String(data.get("service") || "").trim(),
-    budget: String(data.get("budget") || "").trim() || null,
-    details: String(data.get("details") || "").trim(),
-    status: "pending"
+    description: [
+      company && `Empresa: ${company}`,
+      budget && `Presupuesto estimado: ${budget}`,
+      details
+    ].filter(Boolean).join("\n\n")
   };
 
   const { error } = await supabase.from("quote_requests").insert(request);
