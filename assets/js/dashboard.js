@@ -23,6 +23,11 @@ const hideRequestDescription = document.querySelector("#hide-request-description
 const hideRequestError = document.querySelector("#hide-request-error");
 const hideRequestConfirm = document.querySelector("#hide-request-confirm");
 const hideRequestCancel = document.querySelector("#hide-request-cancel");
+const hideRequestPasscode = document.querySelector("#hide-request-passcode");
+const requestDetailsDialog = document.querySelector("#request-details-dialog");
+const requestDetailsTitle = document.querySelector("#request-details-title");
+const requestDetailsContent = document.querySelector("#request-details-content");
+const requestDetailsClose = document.querySelector("#request-details-close");
 const contentManagement = document.querySelector("#content-management");
 const managementStatus = document.querySelector("#management-status");
 const projectsTable = document.querySelector("#projects-table");
@@ -719,23 +724,12 @@ function renderRequests(requests) {
     appendCell(row, request.service);
 
     const descriptionCell = document.createElement("td");
-    const details = document.createElement("details");
-    const summary = document.createElement("summary");
-    summary.textContent = "Ver detalles";
-    const description = document.createElement("p");
-    description.textContent = request.description;
-    details.append(summary, description);
-    if (request.location) {
-      const location = document.createElement("p");
-      location.textContent = `Ubicación: ${request.location}`;
-      details.append(location);
-    }
-    if (request.attachments?.length) {
-      const attachmentInfo = document.createElement("p");
-      attachmentInfo.textContent = `Archivos adjuntos: ${request.attachments.length}`;
-      details.append(attachmentInfo);
-    }
-    descriptionCell.append(details);
+    const detailsButton = document.createElement("button");
+    detailsButton.type = "button";
+    detailsButton.className = "request-details-trigger";
+    detailsButton.textContent = "Ver detalles";
+    detailsButton.addEventListener("click", () => openRequestDetails(request));
+    descriptionCell.append(detailsButton);
     row.append(descriptionCell);
 
     const statusCell = document.createElement("td");
@@ -745,7 +739,9 @@ function renderRequests(requests) {
     statusCell.append(statusBadge);
     row.append(statusCell);
 
-    const actions = document.createElement("td");
+    const actionCell = document.createElement("td");
+    actionCell.className = "request-actions-cell";
+    const actions = document.createElement("div");
     actions.className = "request-actions";
     const canAccept = request.status !== "aceptado";
     const canPend = request.status !== "nuevo";
@@ -764,7 +760,8 @@ function renderRequests(requests) {
       hideButton.addEventListener("click", () => openHideRequestDialog(request));
       actions.append(hideButton);
     }
-    row.append(actions);
+    actionCell.append(actions);
+    row.append(actionCell);
     quotesTable.append(row);
   });
 }
@@ -831,17 +828,29 @@ function openHideRequestDialog(request) {
   hideRequestDescription.textContent =
     `La solicitud de ${request.name} dejará de aparecer en esta lista, pero seguirá guardada en Supabase.`;
   hideRequestError.textContent = "";
+  hideRequestPasscode.value = "";
   hideRequestConfirm.disabled = false;
-  hideRequestConfirm.textContent = "Ocultar";
+  hideRequestCancel.disabled = false;
+  hideRequestPasscode.disabled = false;
+  hideRequestConfirm.textContent = "Eliminar de la lista";
   hideRequestDialog.showModal();
+  hideRequestPasscode.focus();
 }
 
 hideRequestForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!pendingHiddenRequest) return;
 
+  if (hideRequestPasscode.value !== "2002") {
+    hideRequestError.textContent = "La clave no es correcta. No se ocultó la solicitud.";
+    hideRequestPasscode.value = "";
+    hideRequestPasscode.focus();
+    return;
+  }
+
   hideRequestConfirm.disabled = true;
   hideRequestCancel.disabled = true;
+  hideRequestPasscode.disabled = true;
   hideRequestConfirm.textContent = "Ocultando...";
   const { data, error } = await supabase
     .from("quote_requests")
@@ -854,7 +863,8 @@ hideRequestForm?.addEventListener("submit", async (event) => {
     hideRequestError.textContent = "No se pudo ocultar la solicitud. Comprueba el SQL y los permisos administrativos.";
     hideRequestConfirm.disabled = false;
     hideRequestCancel.disabled = false;
-    hideRequestConfirm.textContent = "Ocultar";
+    hideRequestPasscode.disabled = false;
+    hideRequestConfirm.textContent = "Eliminar de la lista";
     return;
   }
 
@@ -869,10 +879,82 @@ hideRequestCancel?.addEventListener("click", () => hideRequestDialog.close());
 hideRequestDialog?.addEventListener("close", () => {
   pendingHiddenRequest = null;
   hideRequestError.textContent = "";
+  hideRequestPasscode.value = "";
   hideRequestConfirm.disabled = false;
   hideRequestCancel.disabled = false;
-  hideRequestConfirm.textContent = "Ocultar";
+  hideRequestPasscode.disabled = false;
+  hideRequestConfirm.textContent = "Eliminar de la lista";
 });
+
+function openRequestDetails(request) {
+  requestDetailsTitle.textContent = `Solicitud de ${request.name || request.full_name || "cliente"}`;
+  requestDetailsContent.replaceChildren();
+
+  const fields = [
+    ["Cliente", request.name || request.full_name],
+    ["Correo electrónico", request.email],
+    ["Teléfono", request.phone],
+    ["Servicio solicitado", request.service],
+    ["Ubicación", request.location],
+    ["Fecha de solicitud", new Date(request.created_at).toLocaleString("es-PA", {
+      dateStyle: "long",
+      timeStyle: "short"
+    })],
+    ["Estado", formatStatus(request.status)],
+    ["Descripción del trabajo", request.description || request.details]
+  ];
+
+  fields.forEach(([label, value]) => {
+    if (value === null || value === undefined || value === "") return;
+    const item = document.createElement("div");
+    item.className = "request-details-item";
+    if (label === "Descripción del trabajo") {
+      item.classList.add("request-details-description");
+    }
+    const term = document.createElement("h3");
+    term.textContent = label;
+    const content = document.createElement("p");
+    content.textContent = String(value);
+    item.append(term, content);
+    requestDetailsContent.append(item);
+  });
+
+  const attachments = Array.isArray(request.attachments) ? request.attachments : [];
+  if (attachments.length) {
+    const item = document.createElement("div");
+    item.className = "request-details-item request-details-attachments";
+    const term = document.createElement("h3");
+    term.textContent = "Archivos adjuntos";
+    item.append(term);
+    const list = document.createElement("ul");
+    attachments.forEach((attachment, index) => {
+      const attachmentUrl = typeof attachment === "string"
+        ? attachment
+        : attachment?.url || attachment?.publicUrl || attachment?.path;
+      const attachmentName = typeof attachment === "object" && attachment
+        ? attachment.name || attachment.fileName || `Archivo ${index + 1}`
+        : `Archivo ${index + 1}`;
+      const listItem = document.createElement("li");
+      if (typeof attachmentUrl === "string" && /^https?:\/\//i.test(attachmentUrl)) {
+        const link = document.createElement("a");
+        link.href = attachmentUrl;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = attachmentName;
+        listItem.append(link);
+      } else {
+        listItem.textContent = attachmentName;
+      }
+      list.append(listItem);
+    });
+    item.append(list);
+    requestDetailsContent.append(item);
+  }
+
+  requestDetailsDialog.showModal();
+}
+
+requestDetailsClose?.addEventListener("click", () => requestDetailsDialog.close());
 
 function appendCell(row, text) {
   const cell = document.createElement("td");

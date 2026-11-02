@@ -319,11 +319,14 @@ body.admin-body .request-filter-menu button span {
   font-size: 10px;
 }
 
+body.admin-body .request-actions-cell {
+  min-width: 290px;
+}
+
 body.admin-body .request-actions {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-width: 290px;
   flex-wrap: wrap;
 }
 
@@ -339,13 +342,97 @@ body.admin-body .decision-button.decision-hide:hover:not(:disabled) {
   color: #8e2d25;
 }
 
-.hide-request-dialog-icon {
+body.admin-body .request-details-trigger {
+  padding: 7px 10px;
+  border: 1px solid #d5dee7;
+  border-radius: 7px;
+  background: #fff;
+  color: #1d3b5a;
+  font: 700 11px Inter, sans-serif;
+  cursor: pointer;
+}
+
+body.admin-body .request-details-trigger:hover {
+  border-color: #e58a32;
+  color: #b85c17;
+}
+
+body.admin-body .hide-request-dialog-icon {
   background: #fff0ee;
   color: #a43d32;
 }
 
-.hide-request-confirm-button {
+body.admin-body .hide-request-confirm-button {
   background: #b7473b;
+}
+
+body.admin-body .request-details-dialog {
+  width: min(720px, calc(100% - 32px));
+}
+
+body.admin-body .request-details-card {
+  max-height: min(85vh, 760px);
+  overflow: auto;
+}
+
+body.admin-body .request-details-icon {
+  background: #edf4fa;
+  color: #1d3b5a;
+}
+
+body.admin-body .request-details-content {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+body.admin-body .request-details-item {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e4eaf0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .86);
+}
+
+body.admin-body .request-details-item h3 {
+  margin: 0 0 5px;
+  color: #65768a;
+  font: 700 10px/1.4 Inter, sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+body.admin-body .request-details-item p {
+  margin: 0;
+  color: #243a50;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+body.admin-body .request-details-description,
+body.admin-body .request-details-attachments {
+  grid-column: 1 / -1;
+}
+
+body.admin-body .request-details-description p {
+  white-space: pre-wrap;
+}
+
+body.admin-body .request-details-attachments ul {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: #243a50;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+body.admin-body .request-details-attachments a {
+  color: #1d5f93;
+  text-decoration: underline;
 }
 
 .management-table {
@@ -743,6 +830,15 @@ body.admin-body .content-selection-row .decision-confirm-button:disabled {
 
   body.admin-body .content-selection-row .decision-confirm-button {
     width: 100%;
+  }
+
+  body.admin-body .request-details-content {
+    grid-template-columns: 1fr;
+  }
+
+  body.admin-body .request-details-description,
+  body.admin-body .request-details-attachments {
+    grid-column: auto;
   }
 
   .catalog-grid {

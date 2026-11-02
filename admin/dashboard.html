@@ -100,12 +100,25 @@
       <p class="eyebrow">GESTIÓN DE SOLICITUDES</p>
       <h2 id="hide-request-title">Ocultar solicitud</h2>
       <p id="hide-request-description" class="decision-dialog-copy">La solicitud dejará de aparecer en esta lista, pero seguirá guardada en Supabase.</p>
+      <label class="decision-passcode-label" for="hide-request-passcode">Clave de confirmación</label>
+      <input id="hide-request-passcode" name="passcode" type="password" inputmode="numeric" autocomplete="off" required aria-describedby="hide-request-error">
       <p id="hide-request-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
       <div class="decision-dialog-actions">
         <button id="hide-request-cancel" class="decision-cancel-button" type="button">Cancelar</button>
-        <button id="hide-request-confirm" class="decision-confirm-button hide-request-confirm-button" type="submit">Ocultar</button>
+        <button id="hide-request-confirm" class="decision-confirm-button hide-request-confirm-button" type="submit">Eliminar de la lista</button>
       </div>
     </form>
+  </dialog>
+  <dialog id="request-details-dialog" class="decision-dialog request-details-dialog" aria-labelledby="request-details-title">
+    <section class="decision-dialog-card request-details-card">
+      <div class="decision-dialog-icon request-details-icon" aria-hidden="true">⌕</div>
+      <p class="eyebrow">DETALLES DE SOLICITUD</p>
+      <h2 id="request-details-title">Solicitud</h2>
+      <div id="request-details-content" class="request-details-content"></div>
+      <div class="decision-dialog-actions">
+        <button id="request-details-close" class="decision-cancel-button" type="button">Cerrar</button>
+      </div>
+    </section>
   </dialog>
   <dialog id="content-selection-dialog" class="decision-dialog content-selection-dialog" aria-labelledby="content-selection-title">
     <form id="content-selection-form" class="decision-dialog-card" novalidate>
