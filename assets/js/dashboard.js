@@ -65,6 +65,17 @@ const toggleRoleManagement = document.querySelector("#toggle-role-management");
 const roleUsersTable = document.querySelector("#role-users-table");
 const roleManagementStatus = document.querySelector("#role-management-status");
 const refreshRoleUsers = document.querySelector("#refresh-role-users");
+const closeAccessRequests = document.querySelector("#close-access-requests");
+const closeRoleManagement = document.querySelector("#close-role-management");
+const activityHistoryDialog = document.querySelector("#activity-history-dialog");
+const toggleActivityHistory = document.querySelector("#toggle-activity-history");
+const activityHistoryTable = document.querySelector("#activity-history-table");
+const activityHistoryStatus = document.querySelector("#activity-history-status");
+const refreshActivityHistory = document.querySelector("#refresh-activity-history");
+const closeActivityHistory = document.querySelector("#close-activity-history");
+const activityHistoryPageStatus = document.querySelector("#activity-history-page-status");
+const previousActivityPage = document.querySelector("#previous-activity-page");
+const nextActivityPage = document.querySelector("#next-activity-page");
 let pendingDecision = null;
 let editingContent = null;
 let deletingContent = null;
@@ -79,6 +90,8 @@ let canManageRequests = false;
 let currentAdminRole = null;
 let currentUserId = null;
 let canManageSuperadminRole = false;
+let activityHistoryPage = 0;
+const activityHistoryPageSize = 50;
 
 const projectLocations = [
   "Panamá",
@@ -144,7 +157,16 @@ async function init() {
   canManageRequests = role === "admin" || role === "superadmin";
   requestFilterControls.hidden = !canManageRequests;
   toggleAccessRequests.hidden = !canManageRequests;
-  toggleRoleManagement.hidden = !canManageRequests;
+  toggleActivityHistory.hidden = !canManageRequests;
+  if (role === "superadmin") {
+    const { data: canManageRoles, error: roleAccessError } = await supabase.rpc("is_primary_superadmin");
+    if (roleAccessError) {
+      console.error("No se pudo verificar el permiso para administrar roles:", roleAccessError);
+      welcome.textContent += " · No se pudo verificar el permiso para administrar roles.";
+    } else {
+      toggleRoleManagement.hidden = !canManageRoles;
+    }
+  }
   if (role === "admin" || role === "superadmin") {
     contentManagement.hidden = false;
     await loadContentManagement();
@@ -294,6 +316,88 @@ async function updateUserRole(user, select, button) {
 
   roleManagementStatus.textContent = `Rol actualizado para ${user.full_name || user.email}.`;
   await loadRoleUsers();
+}
+
+async function loadActivityHistory() {
+  activityHistoryStatus.textContent = "Cargando historial...";
+  activityHistoryStatus.classList.remove("error");
+  const { data, error } = await supabase.rpc("list_admin_activity", {
+    p_limit: activityHistoryPageSize,
+    p_offset: activityHistoryPage * activityHistoryPageSize
+  });
+
+  if (error) {
+    console.error("No se pudo cargar el historial de actividad:", error);
+    activityHistoryStatus.textContent = "No se pudo cargar el historial. Verifica que esté aplicada la configuración SQL de auditoría.";
+    activityHistoryStatus.classList.add("error");
+    activityHistoryTable.replaceChildren(makeTableMessage("Error al cargar el historial.", 4));
+    previousActivityPage.disabled = true;
+    nextActivityPage.disabled = true;
+    activityHistoryPageStatus.textContent = "";
+    return;
+  }
+
+  activityHistoryTable.replaceChildren();
+  if (!data.length) {
+    activityHistoryTable.append(makeTableMessage("Todavía no hay actividad registrada.", 4));
+    activityHistoryStatus.textContent = "";
+    activityHistoryPage = 0;
+    activityHistoryPageStatus.textContent = "0 eventos";
+    previousActivityPage.disabled = true;
+    nextActivityPage.disabled = true;
+    return;
+  }
+
+  data.forEach((entry) => {
+    const row = document.createElement("tr");
+    appendCell(row, new Date(entry.created_at).toLocaleString("es-PA", {
+      dateStyle: "medium",
+      timeStyle: "short"
+    }));
+    appendCell(row, entry.actor_email || entry.actor_name || "Visitante");
+    appendCell(row, formatActivityAction(entry.action));
+    appendCell(row, formatActivityDetails(entry.details));
+    activityHistoryTable.append(row);
+  });
+  const totalCount = Number(data[0].total_count);
+  const firstEvent = activityHistoryPage * activityHistoryPageSize + 1;
+  const lastEvent = Math.min(firstEvent + data.length - 1, totalCount);
+  activityHistoryStatus.textContent = `${firstEvent}–${lastEvent} de ${totalCount} eventos.`;
+  activityHistoryPageStatus.textContent = `${firstEvent}–${lastEvent} de ${totalCount}`;
+  previousActivityPage.disabled = activityHistoryPage === 0;
+  nextActivityPage.disabled = lastEvent >= totalCount;
+}
+
+function formatActivityAction(action) {
+  const labels = {
+    "auth.login": "Inicio de sesión",
+    "auth.logout": "Cierre de sesión",
+    "account.created": "Cuenta activada",
+    "access_request.submitted": "Solicitud de acceso enviada",
+    "access_request.approved": "Solicitud de acceso aprobada",
+    "access_request.rejected": "Solicitud de acceso rechazada",
+    "access_request.deleted": "Solicitud de acceso eliminada",
+    "role.changed": "Rol actualizado",
+    "quote.submitted": "Cotización recibida",
+    "quote.status_changed": "Estado de cotización cambiado",
+    "quote.hidden": "Cotización ocultada",
+    "quote.updated": "Cotización editada",
+    "quote.deleted": "Cotización eliminada",
+    "project.created": "Proyecto agregado",
+    "project.updated": "Proyecto editado",
+    "project.deleted": "Proyecto eliminado",
+    "service.created": "Servicio agregado",
+    "service.updated": "Servicio editado",
+    "service.deleted": "Servicio eliminado"
+  };
+  return labels[action] || String(action || "Actividad").replaceAll(".", " ");
+}
+
+function formatActivityDetails(details) {
+  if (!details || typeof details !== "object") return "—";
+  return Object.entries(details)
+    .map(([key, value]) => `${key.replaceAll("_", " ")}: ${String(value)}`)
+    .join(" · ") || "—";
 }
 
 function makeAccessRequestButton(request, action) {
@@ -1295,29 +1399,56 @@ decisionDialog?.addEventListener("close", () => {
 });
 
 logout?.addEventListener("click", async () => {
-  if (supabase) await supabase.auth.signOut();
+  if (supabase) {
+    const { error: activityError } = await supabase.rpc("record_admin_activity", {
+      p_action: "auth.logout"
+    });
+    if (activityError) {
+      console.error("No se pudo registrar el cierre de sesión:", activityError);
+      status.textContent = "No se pudo guardar el cierre de sesión en el historial.";
+      status.classList.add("error");
+    }
+    await supabase.auth.signOut();
+  }
   window.location.href = "login.html";
 });
 
 refreshButton?.addEventListener("click", loadDashboard);
 toggleAccessRequests?.addEventListener("click", async () => {
-  const isOpening = accessRequestsManagement.hidden;
-  accessRequestsManagement.hidden = !isOpening;
-  toggleAccessRequests.setAttribute("aria-expanded", String(isOpening));
-  toggleAccessRequests.textContent = isOpening
-    ? "Ocultar solicitudes de acceso"
-    : "Ver solicitudes de acceso";
-  if (isOpening) await loadAccessRequests();
+  accessRequestsManagement.showModal();
+  toggleAccessRequests.setAttribute("aria-expanded", "true");
+  await loadAccessRequests();
 });
 refreshAccessRequests?.addEventListener("click", loadAccessRequests);
 toggleRoleManagement?.addEventListener("click", async () => {
-  const isOpening = roleManagement.hidden;
-  roleManagement.hidden = !isOpening;
-  toggleRoleManagement.setAttribute("aria-expanded", String(isOpening));
-  toggleRoleManagement.textContent = isOpening ? "Ocultar roles" : "Roles";
-  if (isOpening) await loadRoleUsers();
+  roleManagement.showModal();
+  toggleRoleManagement.setAttribute("aria-expanded", "true");
+  await loadRoleUsers();
 });
 refreshRoleUsers?.addEventListener("click", loadRoleUsers);
+toggleActivityHistory?.addEventListener("click", async () => {
+  activityHistoryPage = 0;
+  activityHistoryDialog.showModal();
+  toggleActivityHistory.setAttribute("aria-expanded", "true");
+  await loadActivityHistory();
+});
+refreshActivityHistory?.addEventListener("click", loadActivityHistory);
+previousActivityPage?.addEventListener("click", async () => {
+  if (activityHistoryPage === 0) return;
+  activityHistoryPage -= 1;
+  await loadActivityHistory();
+});
+nextActivityPage?.addEventListener("click", async () => {
+  nextActivityPage.disabled = true;
+  activityHistoryPage += 1;
+  await loadActivityHistory();
+});
+closeAccessRequests?.addEventListener("click", () => accessRequestsManagement.close());
+closeRoleManagement?.addEventListener("click", () => roleManagement.close());
+closeActivityHistory?.addEventListener("click", () => activityHistoryDialog.close());
+accessRequestsManagement?.addEventListener("close", () => toggleAccessRequests.setAttribute("aria-expanded", "false"));
+roleManagement?.addEventListener("close", () => toggleRoleManagement.setAttribute("aria-expanded", "false"));
+activityHistoryDialog?.addEventListener("close", () => toggleActivityHistory.setAttribute("aria-expanded", "false"));
 closeAccessCode?.addEventListener("click", () => accessCodeDialog.close());
 accessCodeDialog?.addEventListener("close", () => {
   accessCodeValue.value = "";

@@ -30,6 +30,17 @@ form?.addEventListener("submit", async (event) => {
     status.textContent = "No se pudo iniciar sesión. Verifica tus datos o los usuarios habilitados.";
     return;
   }
+  const { error: activityError } = await supabase.rpc("record_admin_activity", {
+    p_action: "auth.login"
+  });
+  if (activityError) {
+    console.error("No se pudo registrar el inicio de sesión:", activityError);
+    status.textContent = "Iniciaste sesión, pero no se pudo guardar el evento en el historial.";
+    window.setTimeout(() => {
+      window.location.href = "dashboard.html";
+    }, 1200);
+    return;
+  }
   window.location.href = "dashboard.html";
 });
 

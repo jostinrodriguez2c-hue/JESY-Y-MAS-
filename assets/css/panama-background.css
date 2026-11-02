@@ -370,6 +370,48 @@ body.admin-body .request-details-dialog {
   width: min(720px, calc(100% - 32px));
 }
 
+body.admin-body .admin-management-dialog {
+  width: min(1180px, calc(100% - 32px));
+  max-height: min(90vh, 900px);
+}
+
+body.admin-body .admin-management-card {
+  max-height: min(90vh, 900px);
+  overflow: auto;
+}
+
+body.admin-body .admin-management-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+body.admin-body .admin-management-card .requests-heading {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+body.admin-body .activity-history-table {
+  min-width: 760px;
+}
+
+body.admin-body .activity-history-table td:last-child {
+  min-width: 220px;
+  white-space: normal;
+}
+
+body.admin-body .activity-history-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+body.admin-body .activity-history-pagination .btn {
+  min-width: 100px;
+}
+
 body.admin-body .request-details-card {
   max-height: min(85vh, 760px);
   overflow: auto;
@@ -1245,6 +1287,14 @@ body.admin-body .request-details-icon {
   margin-bottom: 16px;
 }
 
+body.admin-body [hidden] {
+  display: none !important;
+}
+
+body.admin-body .dashboard-admin-actions .btn {
+  min-height: 42px;
+}
+
 .role-management-table {
   min-width: 620px;
 }
@@ -1288,5 +1338,27 @@ body.admin-body .request-details-icon {
 
   .access-request-actions {
     min-width: 240px;
+  }
+
+  body.admin-body .admin-management-card {
+    padding: 22px;
+  }
+
+  body.admin-body .admin-management-card .requests-heading {
+    flex-direction: column;
+  }
+
+  body.admin-body .admin-management-dialog {
+    width: calc(100% - 20px);
+    max-height: calc(100vh - 20px);
+  }
+
+  body.admin-body .admin-management-card {
+    max-height: calc(100vh - 20px);
+  }
+
+  body.admin-body .activity-history-pagination {
+    justify-content: space-between;
+    gap: 8px;
   }
 }

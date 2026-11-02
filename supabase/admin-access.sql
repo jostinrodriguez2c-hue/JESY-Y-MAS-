@@ -12,6 +12,19 @@ create table if not exists public.profiles (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.activity_log (
+  id uuid primary key default gen_random_uuid(),
+  actor_id uuid references public.profiles(id),
+  action text not null,
+  entity_type text not null,
+  entity_id uuid,
+  details jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists activity_log_created_at_desc
+  on public.activity_log (created_at desc);
+
 insert into public.profiles (id, full_name, role)
 select
   users.id,
@@ -57,6 +70,77 @@ $$;
 revoke all on function public.access_admin_role() from public, anon;
 grant execute on function public.access_admin_role() to authenticated;
 
+create or replace function public.is_primary_superadmin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.admin_role_settings as settings
+    join public.profiles as profile
+      on profile.id = settings.primary_superadmin_id
+    where settings.singleton = true
+      and settings.primary_superadmin_id = (select auth.uid())
+      and profile.role = 'superadmin'
+  )
+$$;
+
+revoke all on function public.is_primary_superadmin() from public, anon;
+grant execute on function public.is_primary_superadmin() to authenticated;
+
+create or replace function public.write_admin_activity(
+  p_actor_id uuid,
+  p_action text,
+  p_entity_type text,
+  p_entity_id uuid,
+  p_details jsonb default '{}'::jsonb
+)
+returns void
+language sql
+security definer
+set search_path = ''
+as $$
+  insert into public.activity_log (actor_id, action, entity_type, entity_id, details)
+  values (
+    p_actor_id,
+    p_action,
+    p_entity_type,
+    p_entity_id,
+    coalesce(p_details, '{}'::jsonb)
+  )
+$$;
+
+revoke all on function public.write_admin_activity(uuid, text, text, uuid, jsonb) from public, anon, authenticated;
+
+create or replace function public.record_admin_activity(p_action text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if auth.uid() is null or coalesce(p_action, '') not in ('auth.login', 'auth.logout') then
+    raise exception 'Invalid activity event'
+      using errcode = '42501';
+  end if;
+
+  perform public.write_admin_activity(
+    auth.uid(),
+    p_action,
+    'session',
+    null,
+    '{}'::jsonb
+  );
+  return true;
+end;
+$$;
+
+revoke all on function public.record_admin_activity(text) from public, anon;
+grant execute on function public.record_admin_activity(text) to authenticated;
+
 create or replace function public.list_admin_role_users()
 returns table (
   user_id uuid,
@@ -99,6 +183,59 @@ begin
 end;
 $$;
 
+drop function if exists public.list_admin_activity(integer);
+
+create or replace function public.list_admin_activity(
+  p_limit integer default 50,
+  p_offset integer default 0
+)
+returns table (
+  id uuid,
+  actor_name text,
+  actor_email text,
+  action text,
+  entity_type text,
+  entity_id uuid,
+  details jsonb,
+  created_at timestamptz,
+  total_count bigint
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  caller_role text;
+begin
+  caller_role := public.access_admin_role();
+  if coalesce(caller_role, '') not in ('admin', 'superadmin') then
+    raise exception 'Only admins can view the activity history'
+      using errcode = '42501';
+  end if;
+
+  return query
+    select
+      activity.id,
+      coalesce(profile.full_name, ''),
+      users.email::text,
+      activity.action,
+      activity.entity_type,
+      activity.entity_id,
+      activity.details,
+      activity.created_at,
+      count(*) over ()::bigint
+    from public.activity_log as activity
+    left join public.profiles as profile on profile.id = activity.actor_id
+    left join auth.users as users on users.id = activity.actor_id
+    order by activity.created_at desc
+    limit greatest(1, least(coalesce(p_limit, 50), 100))
+    offset greatest(0, coalesce(p_offset, 0));
+end;
+$$;
+
+revoke all on function public.list_admin_activity(integer, integer) from public, anon;
+grant execute on function public.list_admin_activity(integer, integer) to authenticated;
+
 create or replace function public.set_admin_user_role(p_user_id uuid, p_role text)
 returns boolean
 language plpgsql
@@ -111,20 +248,22 @@ declare
   target_role text;
 begin
   caller_role := public.access_admin_role();
-  if coalesce(caller_role, '') not in ('admin', 'superadmin') then
-    raise exception 'Only admins can change account roles'
-      using errcode = '42501';
-  end if;
-
-  if p_role not in ('support', 'editor', 'admin', 'superadmin') then
-    raise exception 'Invalid account role'
-      using errcode = '22023';
-  end if;
-
   select primary_superadmin_id
     into primary_id
     from public.admin_role_settings
     where singleton = true;
+
+  if coalesce(caller_role, '') <> 'superadmin'
+    or primary_id is null
+    or auth.uid() <> primary_id then
+    raise exception 'Only the primary superadmin can change account roles'
+      using errcode = '42501';
+  end if;
+
+  if coalesce(p_role, '') not in ('support', 'editor', 'admin', 'superadmin') then
+    raise exception 'Invalid account role'
+      using errcode = '22023';
+  end if;
 
   select profiles.role
     into target_role
@@ -222,6 +361,159 @@ create table if not exists public.admin_activation_tickets (
   used_at timestamptz,
   created_at timestamptz not null default now()
 );
+
+alter table public.activity_log enable row level security;
+revoke all on public.activity_log from anon, authenticated;
+
+create or replace function public.audit_admin_table_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  row_data jsonb;
+  previous_data jsonb;
+  actor uuid;
+  event_action text;
+  event_details jsonb;
+  entity uuid;
+  item_name text;
+begin
+  if tg_op = 'DELETE' then
+    row_data := to_jsonb(old);
+  else
+    row_data := to_jsonb(new);
+  end if;
+  entity := (row_data ->> 'id')::uuid;
+  actor := auth.uid();
+  item_name := coalesce(row_data ->> 'name', row_data ->> 'title', row_data ->> 'full_name', '');
+
+  if tg_table_name = 'quote_requests' then
+    if tg_op = 'INSERT' then
+      event_action := 'quote.submitted';
+      event_details := jsonb_build_object(
+        'name', item_name,
+        'service', row_data ->> 'service',
+        'status', row_data ->> 'status'
+      );
+    elsif tg_op = 'UPDATE' then
+      previous_data := to_jsonb(old);
+      if previous_data ->> 'status' is distinct from row_data ->> 'status' then
+        perform public.write_admin_activity(
+          actor, 'quote.status_changed', 'quote_request', entity,
+          jsonb_build_object(
+            'name', item_name,
+            'from_status', previous_data ->> 'status',
+            'to_status', row_data ->> 'status'
+          )
+        );
+      end if;
+      if previous_data ->> 'hidden_from_admin' is distinct from row_data ->> 'hidden_from_admin' then
+        perform public.write_admin_activity(
+          actor, 'quote.hidden', 'quote_request', entity,
+          jsonb_build_object('name', item_name, 'hidden', row_data ->> 'hidden_from_admin')
+        );
+      end if;
+      if previous_data ->> 'status' is not distinct from row_data ->> 'status'
+        and previous_data ->> 'hidden_from_admin' is not distinct from row_data ->> 'hidden_from_admin' then
+        perform public.write_admin_activity(
+          actor, 'quote.updated', 'quote_request', entity,
+          jsonb_build_object('name', item_name)
+        );
+      end if;
+      return new;
+    else
+      event_action := 'quote.deleted';
+      event_details := jsonb_build_object('name', item_name);
+    end if;
+  elsif tg_table_name = 'admin_access_requests' then
+    if tg_op = 'INSERT' then
+      event_action := 'access_request.submitted';
+      event_details := jsonb_build_object(
+        'name', item_name,
+        'email', row_data ->> 'email'
+      );
+    elsif tg_op = 'UPDATE' then
+      previous_data := to_jsonb(old);
+      if previous_data ->> 'status' is distinct from row_data ->> 'status' then
+        event_action := 'access_request.' || (row_data ->> 'status');
+        event_details := jsonb_build_object(
+          'name', item_name,
+          'email', row_data ->> 'email'
+        );
+      else
+        return new;
+      end if;
+    else
+      event_action := 'access_request.deleted';
+      event_details := jsonb_build_object(
+        'name', item_name,
+        'email', row_data ->> 'email'
+      );
+    end if;
+  elsif tg_table_name = 'profiles' then
+    previous_data := to_jsonb(old);
+    if previous_data ->> 'role' is distinct from row_data ->> 'role' then
+      event_action := 'role.changed';
+      event_details := jsonb_build_object(
+        'name', item_name,
+        'from_role', previous_data ->> 'role',
+        'to_role', row_data ->> 'role'
+      );
+    else
+      return new;
+    end if;
+  else
+    event_action := case lower(substring(tg_table_name from 1 for length(tg_table_name) - 1))
+      when 'project' then 'project'
+      when 'servic' then 'service'
+      else tg_table_name
+    end || case tg_op
+      when 'INSERT' then '.created'
+      when 'UPDATE' then '.updated'
+      else '.deleted'
+    end;
+    event_details := jsonb_build_object(
+      'name', item_name,
+      'status', coalesce(row_data ->> 'status', row_data ->> 'is_published', row_data ->> 'active')
+    );
+  end if;
+
+  perform public.write_admin_activity(actor, event_action, tg_table_name, entity, event_details);
+  if tg_op = 'DELETE' then
+    return old;
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function public.audit_admin_table_change() from public, anon, authenticated;
+
+drop trigger if exists audit_quote_requests_changes on public.quote_requests;
+create trigger audit_quote_requests_changes
+after insert or update or delete on public.quote_requests
+for each row execute procedure public.audit_admin_table_change();
+
+drop trigger if exists audit_access_request_changes on public.admin_access_requests;
+create trigger audit_access_request_changes
+after insert or update or delete on public.admin_access_requests
+for each row execute procedure public.audit_admin_table_change();
+
+drop trigger if exists audit_projects_changes on public.projects;
+create trigger audit_projects_changes
+after insert or update or delete on public.projects
+for each row execute procedure public.audit_admin_table_change();
+
+drop trigger if exists audit_services_changes on public.services;
+create trigger audit_services_changes
+after insert or update or delete on public.services
+for each row execute procedure public.audit_admin_table_change();
+
+drop trigger if exists audit_profile_role_changes on public.profiles;
+create trigger audit_profile_role_changes
+after update on public.profiles
+for each row execute procedure public.audit_admin_table_change();
 
 alter table public.admin_access_requests enable row level security;
 alter table public.admin_activation_codes enable row level security;
@@ -601,6 +893,13 @@ begin
     'support'
   )
   on conflict (id) do nothing;
+  perform public.write_admin_activity(
+    new.id,
+    'account.created',
+    'profile',
+    new.id,
+    jsonb_build_object('name', coalesce(new.raw_user_meta_data ->> 'full_name', ''))
+  );
   return new;
 end;
 $$;

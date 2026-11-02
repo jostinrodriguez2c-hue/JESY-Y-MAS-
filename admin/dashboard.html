@@ -16,8 +16,9 @@
     <h1>Panel administrativo</h1>
     <p id="admin-welcome" class="muted">Verificando acceso...</p>
     <div class="dashboard-admin-actions">
-      <button id="toggle-access-requests" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="access-requests-management" hidden>Ver solicitudes de acceso</button>
-      <button id="toggle-role-management" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="role-management" hidden>Roles</button>
+      <button id="toggle-access-requests" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="access-requests-management" hidden>Ver solicitudes de acceso</button>
+      <button id="toggle-role-management" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="role-management" hidden>Roles</button>
+      <button id="toggle-activity-history" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="activity-history-dialog" hidden>Historial</button>
     </div>
     <div class="dashboard-grid">
       <article class="stat-card"><span>Solicitudes recibidas</span><strong id="quote-count">—</strong></article>
@@ -59,34 +60,6 @@
       </section>
       <p id="management-status" class="form-status" role="status" aria-live="polite"></p>
     </div>
-    <section id="access-requests-management" class="requests-section" aria-labelledby="access-requests-heading" hidden>
-      <div class="requests-heading">
-        <div><p class="eyebrow">PERSONAL</p><h2 id="access-requests-heading">Solicitudes de acceso</h2></div>
-        <button id="refresh-access-requests" class="btn btn-dark" type="button">Actualizar</button>
-      </div>
-      <p class="muted">Los admins pueden revisar y rechazar solicitudes. Solo el superadministrador puede aprobarlas y generar el código temporal de un solo uso, válido por 24 horas.</p>
-      <p id="access-requests-status" class="form-status" role="status" aria-live="polite"></p>
-      <div class="requests-table-wrap">
-        <table class="requests-table access-requests-table">
-          <thead><tr><th>Nombre</th><th>Correo</th><th>Fecha</th><th>Acciones</th></tr></thead>
-          <tbody id="access-requests-table"><tr><td colspan="4">Cargando solicitudes...</td></tr></tbody>
-        </table>
-      </div>
-    </section>
-    <section id="role-management" class="requests-section" aria-labelledby="role-management-heading" hidden>
-      <div class="requests-heading">
-        <div><p class="eyebrow">PERSONAL</p><h2 id="role-management-heading">Administrar roles</h2></div>
-        <button id="refresh-role-users" class="btn btn-dark" type="button">Actualizar</button>
-      </div>
-      <p class="muted">Admin y superadmin pueden asignar roles de soporte, editor y admin. Solo el superadmin principal puede asignar o quitar el rol superadmin.</p>
-      <p id="role-management-status" class="form-status" role="status" aria-live="polite"></p>
-      <div class="requests-table-wrap">
-        <table class="requests-table role-management-table">
-          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acciones</th></tr></thead>
-          <tbody id="role-users-table"><tr><td colspan="4">Abre esta sección para cargar las cuentas.</td></tr></tbody>
-        </table>
-      </div>
-    </section>
     <section class="requests-section" aria-labelledby="requests-heading">
       <div class="requests-heading">
         <div><p class="eyebrow">COTIZACIONES</p><h2 id="requests-heading">Solicitudes recibidas</h2></div>
@@ -111,6 +84,68 @@
       </div>
     </section>
   </main>
+  <dialog id="access-requests-management" class="decision-dialog admin-management-dialog" aria-labelledby="access-requests-heading">
+    <section class="decision-dialog-card admin-management-card">
+      <div class="requests-heading">
+        <div><p class="eyebrow">PERSONAL</p><h2 id="access-requests-heading">Solicitudes de acceso</h2></div>
+        <div class="admin-management-controls">
+          <button id="refresh-access-requests" class="btn btn-dark" type="button">Actualizar</button>
+          <button id="close-access-requests" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p class="muted">Los admins pueden revisar y rechazar solicitudes. Solo el superadministrador puede aprobarlas y generar el código temporal de un solo uso, válido por 24 horas.</p>
+      <p id="access-requests-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table access-requests-table">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Fecha</th><th>Acciones</th></tr></thead>
+          <tbody id="access-requests-table"><tr><td colspan="4">Abre esta ventana para cargar las solicitudes.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="role-management" class="decision-dialog admin-management-dialog" aria-labelledby="role-management-heading">
+    <section class="decision-dialog-card admin-management-card">
+      <div class="requests-heading">
+        <div><p class="eyebrow">PERSONAL</p><h2 id="role-management-heading">Administrar roles</h2></div>
+        <div class="admin-management-controls">
+          <button id="refresh-role-users" class="btn btn-dark" type="button">Actualizar</button>
+          <button id="close-role-management" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p class="muted">Solo el superadmin principal puede cambiar el rol de las cuentas. Administra los roles de soporte, editor, admin y superadmin.</p>
+      <p id="role-management-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table role-management-table">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acciones</th></tr></thead>
+          <tbody id="role-users-table"><tr><td colspan="4">Abre esta ventana para cargar las cuentas.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="activity-history-dialog" class="decision-dialog admin-management-dialog" aria-labelledby="activity-history-heading">
+    <section class="decision-dialog-card admin-management-card">
+      <div class="requests-heading">
+        <div><p class="eyebrow">AUDITORÍA</p><h2 id="activity-history-heading">Historial de actividad</h2></div>
+        <div class="admin-management-controls">
+          <button id="refresh-activity-history" class="btn btn-dark" type="button">Actualizar</button>
+          <button id="close-activity-history" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p class="muted">Registro de inicios y cierres de sesión, solicitudes, cambios de roles y acciones sobre cotizaciones, proyectos y servicios.</p>
+      <p id="activity-history-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table activity-history-table">
+          <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+          <tbody id="activity-history-table"><tr><td colspan="4">Abre esta ventana para cargar el historial.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="activity-history-pagination">
+        <button id="previous-activity-page" class="btn btn-dark" type="button" disabled>Anterior</button>
+        <span id="activity-history-page-status" class="muted" aria-live="polite"></span>
+        <button id="next-activity-page" class="btn btn-dark" type="button" disabled>Siguiente</button>
+      </div>
+    </section>
+  </dialog>
   <dialog id="decision-dialog" class="decision-dialog" aria-labelledby="decision-title" aria-describedby="decision-description">
     <form id="decision-form" class="decision-dialog-card">
       <div class="decision-dialog-icon" aria-hidden="true">✓</div>
