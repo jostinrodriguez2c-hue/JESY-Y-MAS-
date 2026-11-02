@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabaseClient.js";
+import "./background.js";
 
 const form = document.querySelector("#quote-form");
 const status = document.querySelector("#quote-status");

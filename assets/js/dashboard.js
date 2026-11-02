@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabaseClient.js";
+import "./background.js";
 
 const status = document.querySelector("#dashboard-status");
 const welcome = document.querySelector("#admin-welcome");
