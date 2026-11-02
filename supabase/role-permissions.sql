@@ -559,11 +559,17 @@ using (public.has_admin_permission('access_requests.view'));
 
 drop policy if exists "public read published projects" on public.projects;
 drop policy if exists "admins manage projects" on public.projects;
+drop policy if exists "role permissions read projects" on public.projects;
 drop policy if exists "role permissions insert projects" on public.projects;
 drop policy if exists "role permissions update projects" on public.projects;
 drop policy if exists "role permissions delete projects" on public.projects;
 create policy "public read published projects" on public.projects
-for select to anon, authenticated
+for select to anon
+using (
+  coalesce(to_jsonb(projects) ->> 'published', to_jsonb(projects) ->> 'is_published') = 'true'
+);
+create policy "role permissions read projects" on public.projects
+for select to authenticated
 using (
   coalesce(to_jsonb(projects) ->> 'published', to_jsonb(projects) ->> 'is_published') = 'true'
   or public.has_admin_permission('projects.view')
@@ -581,11 +587,17 @@ using (public.has_admin_permission('projects.delete'));
 
 drop policy if exists "public read published services" on public.services;
 drop policy if exists "admins manage services" on public.services;
+drop policy if exists "role permissions read services" on public.services;
 drop policy if exists "role permissions insert services" on public.services;
 drop policy if exists "role permissions update services" on public.services;
 drop policy if exists "role permissions delete services" on public.services;
 create policy "public read published services" on public.services
-for select to anon, authenticated
+for select to anon
+using (
+  coalesce(to_jsonb(services) ->> 'active', to_jsonb(services) ->> 'is_published') = 'true'
+);
+create policy "role permissions read services" on public.services
+for select to authenticated
 using (
   coalesce(to_jsonb(services) ->> 'active', to_jsonb(services) ->> 'is_published') = 'true'
   or public.has_admin_permission('services.view')
@@ -1517,7 +1529,6 @@ begin
   return new;
 end;
 $$;
-
 revoke all on function public.access_admin_role_for_user(uuid) from public, anon, authenticated;
 revoke all on function public.assign_admin_user_role(uuid, text) from public, anon;
 revoke all on function public.remove_admin_user_role(uuid, text) from public, anon;

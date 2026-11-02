@@ -28,7 +28,7 @@ async function loadServices(container, limit) {
   const { data, error } = await query;
   if (error) {
     console.error("No se pudieron cargar los servicios:", error);
-    showCatalogMessage(container, "No se pudieron cargar los servicios en este momento.");
+    showCatalogMessage(container, getCatalogErrorMessage(error, "servicios"));
     return;
   }
 
@@ -71,7 +71,7 @@ async function loadProjects(container) {
 
   if (error) {
     console.error("No se pudieron cargar los proyectos:", error);
-    showCatalogMessage(container, "No se pudieron cargar los proyectos en este momento.");
+    showCatalogMessage(container, getCatalogErrorMessage(error, "proyectos"));
     return;
   }
 
@@ -141,4 +141,11 @@ function showCatalogMessage(container, message) {
   paragraph.className = "catalog-message";
   paragraph.textContent = message;
   container.replaceChildren(paragraph);
+}
+
+function getCatalogErrorMessage(error, contentName) {
+  if (error.code === "42501" && error.message?.includes("has_admin_permission")) {
+    return `No se pudieron cargar los ${contentName}. Actualiza las políticas ejecutando supabase/role-permissions.sql en Supabase y vuelve a intentarlo.`;
+  }
+  return `No se pudieron cargar los ${contentName} en este momento.`;
 }

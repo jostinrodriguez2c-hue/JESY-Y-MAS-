@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard | SOLUCIONES EXTREMAS Y MÁS</title>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+<link rel="icon" type="image/png" href="../favicon.png?v=20261102"></head>
+<body class="admin-body">
+  <main class="container admin-dashboard">
+    <header class="admin-top">
+      <a class="brand" href="../index.html"><span class="brand-mark">S<span>+</span></span><span class="brand-copy"><strong>SOLUCIONES EXTREMAS Y MÁS</strong><small>PANEL ADMINISTRATIVO</small></span></a>
+      <button id="logout-button" class="btn btn-dark" type="button">Cerrar sesión</button>
+    </header>
+    <p class="eyebrow">RESUMEN GENERAL</p>
+    <h1>Panel administrativo</h1>
+    <p id="admin-welcome" class="muted">Verificando acceso...</p>
+    <div class="dashboard-admin-actions">
+      <button id="toggle-access-requests" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="access-requests-management" hidden>Ver solicitudes de acceso</button>
+      <button id="toggle-role-management" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="role-management" hidden>Roles</button>
+      <button id="toggle-activity-history" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="activity-history-dialog" hidden>Historial</button>
+    </div>
+    <div class="dashboard-grid">
+      <article class="stat-card"><span>Solicitudes recibidas</span><strong id="quote-count">—</strong></article>
+      <article class="stat-card"><span>Proyectos publicados</span><strong id="project-count">—</strong></article>
+      <article class="stat-card"><span>Servicios activos</span><strong id="service-count">—</strong></article>
+    </div>
+    <div id="content-management" hidden>
+      <section class="management-section" aria-labelledby="manage-projects-heading">
+        <div class="requests-heading">
+          <div><p class="eyebrow">PORTAFOLIO</p><h2 id="manage-projects-heading">Administrar proyectos</h2></div>
+          <div class="management-toolbar">
+            <button id="add-project" class="btn btn-orange" type="button">Agregar proyecto</button>
+            <button id="edit-project" class="btn btn-dark" type="button">Editar</button>
+            <button id="delete-project" class="btn btn-dark management-toolbar-delete" type="button">Eliminar</button>
+          </div>
+        </div>
+        <div class="requests-table-wrap">
+          <table class="requests-table management-table">
+            <thead><tr><th>Proyecto</th><th>Ubicación</th><th>Estado</th><th>Visibilidad</th></tr></thead>
+            <tbody id="projects-table"><tr><td colspan="4">Cargando proyectos...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="management-section" aria-labelledby="manage-services-heading">
+        <div class="requests-heading">
+          <div><p class="eyebrow">CATÁLOGO</p><h2 id="manage-services-heading">Administrar servicios</h2></div>
+          <div class="management-toolbar">
+            <button id="add-service" class="btn btn-orange" type="button">Agregar servicio</button>
+            <button id="edit-service" class="btn btn-dark" type="button">Editar</button>
+            <button id="delete-service" class="btn btn-dark management-toolbar-delete" type="button">Eliminar</button>
+          </div>
+        </div>
+        <div class="requests-table-wrap">
+          <table class="requests-table management-table">
+            <thead><tr><th>Servicio</th><th>Descripción</th><th>Visibilidad</th></tr></thead>
+            <tbody id="services-table"><tr><td colspan="3">Cargando servicios...</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+      <p id="management-status" class="form-status" role="status" aria-live="polite"></p>
+    </div>
+    <section class="requests-section" aria-labelledby="requests-heading">
+      <div class="requests-heading">
+        <div><p class="eyebrow">COTIZACIONES</p><h2 id="requests-heading">Solicitudes recibidas</h2></div>
+        <div class="requests-toolbar">
+          <div class="request-filter" id="request-filter-controls" hidden>
+            <button id="request-filter-toggle" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="request-filter-menu">Filtrar solicitudes</button>
+            <div id="request-filter-menu" class="request-filter-menu" aria-label="Filtrar solicitudes">
+              <button type="button" data-request-filter="accepted">Aceptadas <span id="accepted-count">0</span></button>
+              <button type="button" data-request-filter="pending">Pendientes <span id="pending-count">0</span></button>
+              <button type="button" data-request-filter="rejected">Rechazadas <span id="rejected-count">0</span></button>
+            </div>
+          </div>
+          <button id="refresh-quotes" class="btn btn-dark" type="button">Actualizar</button>
+        </div>
+      </div>
+      <p id="dashboard-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table">
+          <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Descripción</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="quotes-table"><tr><td colspan="6">Cargando solicitudes...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <dialog id="access-requests-management" class="decision-dialog admin-management-dialog" aria-labelledby="access-requests-heading">
+    <section class="decision-dialog-card admin-management-card">
+      <div class="requests-heading">
+        <div><p class="eyebrow">PERSONAL</p><h2 id="access-requests-heading">Solicitudes de acceso</h2></div>
+        <div class="admin-management-controls">
+          <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
+          <button id="refresh-access-requests" class="btn btn-dark" type="button">Actualizar</button>
+          <button id="close-access-requests" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p class="muted">Los admins pueden revisar y rechazar solicitudes. Solo el superadministrador puede aprobarlas y generar el código temporal de un solo uso, válido por 24 horas.</p>
+      <p id="access-requests-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table access-requests-table">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Fecha</th><th>Acciones</th></tr></thead>
+          <tbody id="access-requests-table"><tr><td colspan="4">Abre esta ventana para cargar las solicitudes.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="role-management" class="decision-dialog admin-management-dialog" aria-labelledby="role-management-heading">
+    <section class="decision-dialog-card admin-management-card role-management-card">
+      <div class="requests-heading">
+        <div class="role-management-title">
+          <span class="role-management-mark" aria-hidden="true">R</span>
+          <div><p class="eyebrow">CENTRO DE PERSONAL</p><h2 id="role-management-heading">Administrar roles</h2><p class="role-management-subtitle">Cuentas, permisos y acceso</p></div>
+        </div>
+        <div class="admin-management-controls">
+          <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
+          <button id="refresh-role-users" class="btn btn-dark" type="button"><span aria-hidden="true">↻</span> Actualizar</button>
+          <button id="close-role-management" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p class="role-management-intro">Administra las cuentas y sus accesos desde un solo lugar. La creación y edición de permisos está reservada al superadmin principal.</p>
+      <p id="role-management-status" class="form-status" role="status" aria-live="polite"></p>
+      <nav class="role-management-nav" aria-label="Administrar roles">
+        <button class="btn btn-dark is-selected" type="button" data-role-panel-button="add">Agregar roles</button>
+        <button class="btn btn-dark" type="button" data-role-panel-button="edit">Editar roles</button>
+        <button class="btn btn-dark" type="button" data-role-panel-button="delete">Eliminar roles</button>
+        <button class="btn btn-dark" type="button" data-role-panel-button="assign">Asignar roles</button>
+      </nav>
+      <p id="role-definition-access-note" class="muted" role="status" hidden>Estas opciones requieren que tu cuenta esté configurada como superadmin principal en Supabase.</p>
+      <section class="role-management-panel" data-role-panel="add" aria-labelledby="add-role-heading">
+        <h3 id="add-role-heading">Agregar un rol</h3>
+        <form id="add-role-form" class="role-editor-form">
+          <label class="content-field" for="add-role-name">Nombre del rol</label>
+          <input id="add-role-name" name="display_name" maxlength="60" required>
+          <div id="add-role-permissions" class="role-permission-groups"></div>
+          <button class="btn btn-orange" type="submit">Crear rol</button>
+        </form>
+      </section>
+      <section class="role-management-panel" data-role-panel="edit" aria-labelledby="edit-role-heading" hidden>
+        <h3 id="edit-role-heading">Editar permisos de un rol</h3>
+        <form id="edit-role-form" class="role-editor-form">
+          <label class="content-field" for="edit-role-select">Rol</label>
+          <select id="edit-role-select" name="role_key" required></select>
+          <label class="content-field" for="edit-role-name">Nombre visible</label>
+          <input id="edit-role-name" name="display_name" maxlength="60" required>
+          <div id="edit-role-permissions" class="role-permission-groups"></div>
+          <button class="btn btn-orange" type="submit">Guardar cambios</button>
+        </form>
+      </section>
+      <section class="role-management-panel" data-role-panel="delete" aria-labelledby="delete-role-heading" hidden>
+        <h3 id="delete-role-heading">Eliminar un rol personalizado</h3>
+        <p class="muted">Los roles del sistema no se pueden eliminar. Primero reasigna las cuentas que usen el rol seleccionado.</p>
+        <form id="delete-role-form" class="role-editor-form">
+          <label class="content-field" for="delete-role-select">Rol personalizado</label>
+          <select id="delete-role-select" name="role_key" required></select>
+          <p id="delete-role-assigned" class="muted" aria-live="polite"></p>
+          <button class="btn btn-dark management-toolbar-delete" type="submit">Eliminar rol</button>
+        </form>
+      </section>
+      <section class="role-management-panel" data-role-panel="assign" aria-labelledby="assign-role-heading" hidden>
+        <h3 id="assign-role-heading">Asignar roles a las cuentas</h3>
+        <p class="muted">Aquí aparecen las cuentas y solicitudes pendientes de activar. Selecciona un rol para agregarlo o quitarlo de una cuenta existente. No puedes cambiar tus propios roles ni los del superadmin principal; cada cuenta debe conservar al menos un rol.</p>
+        <div class="requests-table-wrap">
+          <table class="requests-table role-management-table">
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Estado de cuenta</th><th>Agregar rol</th><th>Acciones</th></tr></thead>
+            <tbody id="role-users-table"><tr><td colspan="5">Abre esta ventana para cargar las cuentas.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </dialog>
+  <dialog id="assigned-roles-dialog" class="decision-dialog assigned-roles-dialog" aria-labelledby="assigned-roles-heading">
+    <section class="decision-dialog-card assigned-roles-card">
+      <p class="eyebrow">PERSONAL</p>
+      <h2 id="assigned-roles-heading">Roles asignados</h2>
+      <p id="assigned-roles-user" class="muted"></p>
+      <div id="assigned-roles-list" class="assigned-roles-list"></div>
+      <p id="assigned-roles-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="close-assigned-roles" class="decision-cancel-button" type="button">Cerrar</button>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="activity-history-dialog" class="decision-dialog admin-management-dialog" aria-labelledby="activity-history-heading">
+    <section class="decision-dialog-card admin-management-card">
+      <div class="requests-heading">
+        <div><p class="eyebrow">AUDITORÍA</p><h2 id="activity-history-heading">Historial de actividad</h2></div>
+        <div class="admin-management-controls">
+          <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
+          <button id="refresh-activity-history" class="btn btn-dark" type="button">Actualizar</button>
+          <button id="close-activity-history" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p class="muted">Registro de inicios y cierres de sesión, solicitudes, cambios de roles y acciones sobre cotizaciones, proyectos y servicios.</p>
+      <p id="activity-history-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table activity-history-table">
+          <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Detalle</th></tr></thead>
+          <tbody id="activity-history-table"><tr><td colspan="4">Abre esta ventana para cargar el historial.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="activity-history-pagination">
+        <button id="previous-activity-page" class="btn btn-dark" type="button" disabled>Anterior</button>
+        <span id="activity-history-page-status" class="muted" aria-live="polite"></span>
+        <button id="next-activity-page" class="btn btn-dark" type="button" disabled>Siguiente</button>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="decision-dialog" class="decision-dialog" aria-labelledby="decision-title" aria-describedby="decision-description">
+    <form id="decision-form" class="decision-dialog-card">
+      <div class="decision-dialog-icon" aria-hidden="true">✓</div>
+      <p class="eyebrow">CONFIRMACIÓN ADMINISTRATIVA</p>
+      <h2 id="decision-title">Confirmar decisión</h2>
+      <p id="decision-description" class="decision-dialog-copy">Ingresa la clave para continuar.</p>
+      <label class="decision-passcode-label" for="decision-passcode">Clave de confirmación</label>
+      <input id="decision-passcode" name="passcode" type="password" inputmode="numeric" autocomplete="off" required aria-describedby="decision-error">
+      <p id="decision-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="decision-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="decision-confirm" class="decision-confirm-button" type="submit">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="access-code-dialog" class="decision-dialog" aria-labelledby="access-code-title" aria-describedby="access-code-description">
+    <section class="decision-dialog-card">
+      <div class="decision-dialog-icon" aria-hidden="true">✓</div>
+      <p class="eyebrow">APROBACIÓN DE ACCESO</p>
+      <h2 id="access-code-title">Código temporal generado</h2>
+      <p id="access-code-description" class="decision-dialog-copy">Entrega este código de 4 dígitos personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.</p>
+      <label class="decision-passcode-label" for="access-code-value">Código de activación</label>
+      <input id="access-code-value" class="access-code-value" type="text" readonly>
+      <p id="access-code-email" class="decision-dialog-copy"></p>
+      <div class="decision-dialog-actions">
+        <button id="copy-access-code" class="decision-cancel-button" type="button">Copiar código</button>
+        <button id="close-access-code" class="decision-confirm-button" type="button">Listo</button>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="hide-request-dialog" class="decision-dialog" aria-labelledby="hide-request-title" aria-describedby="hide-request-description">
+    <form id="hide-request-form" class="decision-dialog-card" novalidate>
+      <div class="decision-dialog-icon hide-request-dialog-icon" aria-hidden="true">⌑</div>
+      <p class="eyebrow">GESTIÓN DE SOLICITUDES</p>
+      <h2 id="hide-request-title">Ocultar solicitud</h2>
+      <p id="hide-request-description" class="decision-dialog-copy">La solicitud dejará de aparecer en esta lista, pero seguirá guardada en Supabase.</p>
+      <label class="decision-passcode-label" for="hide-request-passcode">Clave de confirmación</label>
+      <input id="hide-request-passcode" name="passcode" type="password" inputmode="numeric" autocomplete="off" required aria-describedby="hide-request-error">
+      <p id="hide-request-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="hide-request-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="hide-request-confirm" class="decision-confirm-button hide-request-confirm-button" type="submit">Eliminar de la lista</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="request-details-dialog" class="decision-dialog request-details-dialog" aria-labelledby="request-details-title">
+    <section class="decision-dialog-card request-details-card">
+      <div class="decision-dialog-icon request-details-icon" aria-hidden="true">⌕</div>
+      <p class="eyebrow">DETALLES DE SOLICITUD</p>
+      <h2 id="request-details-title">Solicitud</h2>
+      <div id="request-details-content" class="request-details-content"></div>
+      <div class="decision-dialog-actions">
+        <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
+        <button id="request-details-close" class="decision-cancel-button" type="button">Cerrar</button>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="content-selection-dialog" class="decision-dialog content-selection-dialog" aria-labelledby="content-selection-title">
+    <form id="content-selection-form" class="decision-dialog-card" novalidate>
+      <div class="decision-dialog-icon" aria-hidden="true">⌕</div>
+      <p class="eyebrow">GESTIÓN DEL SITIO</p>
+      <h2 id="content-selection-title">Seleccionar contenido</h2>
+      <p id="content-selection-description" class="decision-dialog-copy">Elige un elemento de la lista.</p>
+      <label class="content-field" for="content-selection">Contenido</label>
+      <div class="content-selection-row">
+        <select id="content-selection" name="content_id" required></select>
+        <button id="content-selection-confirm" class="decision-confirm-button" type="submit">Continuar</button>
+      </div>
+      <p id="content-selection-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="content-selection-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="content-dialog" class="decision-dialog content-dialog" aria-labelledby="content-dialog-title">
+    <form id="content-form" class="decision-dialog-card" novalidate>
+      <div class="decision-dialog-icon" aria-hidden="true">✎</div>
+      <p class="eyebrow">GESTIÓN DEL SITIO</p>
+      <h2 id="content-dialog-title">Agregar contenido</h2>
+      <div id="content-fields" class="content-fields"></div>
+      <p id="content-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="content-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="content-save" class="decision-confirm-button" type="submit">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="delete-dialog" class="decision-dialog" aria-labelledby="delete-title" aria-describedby="delete-description">
+    <form id="delete-form" class="decision-dialog-card" novalidate>
+      <div class="decision-dialog-icon delete-dialog-icon" aria-hidden="true">!</div>
+      <p class="eyebrow">ACCIÓN IRREVERSIBLE</p>
+      <h2 id="delete-title">Eliminar contenido</h2>
+      <p id="delete-description" class="decision-dialog-copy">¿Confirmas que quieres eliminar este elemento?</p>
+      <p id="delete-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="delete-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="delete-confirm" class="decision-confirm-button delete-confirm-button" type="submit">Sí, eliminar</button>
+      </div>
+    </form>
+  </dialog>
+  <script type="module" src="../assets/js/dashboard.js?v=20261102-return-to-site"></script>
+</body>
+</html>
