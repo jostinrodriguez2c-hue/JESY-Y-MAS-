@@ -34,6 +34,21 @@
       </div>
     </section>
   </main>
+  <dialog id="decision-dialog" class="decision-dialog" aria-labelledby="decision-title" aria-describedby="decision-description">
+    <form id="decision-form" class="decision-dialog-card">
+      <div class="decision-dialog-icon" aria-hidden="true">✓</div>
+      <p class="eyebrow">CONFIRMACIÓN ADMINISTRATIVA</p>
+      <h2 id="decision-title">Confirmar decisión</h2>
+      <p id="decision-description" class="decision-dialog-copy">Ingresa la clave para continuar.</p>
+      <label class="decision-passcode-label" for="decision-passcode">Clave de confirmación</label>
+      <input id="decision-passcode" name="passcode" type="password" inputmode="numeric" autocomplete="off" required aria-describedby="decision-error">
+      <p id="decision-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="decision-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="decision-confirm" class="decision-confirm-button" type="submit">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
   <script type="module" src="../assets/js/dashboard.js"></script>
 </body>
 </html>

@@ -6,6 +6,15 @@ const welcome = document.querySelector("#admin-welcome");
 const logout = document.querySelector("#logout-button");
 const quotesTable = document.querySelector("#quotes-table");
 const refreshButton = document.querySelector("#refresh-quotes");
+const decisionDialog = document.querySelector("#decision-dialog");
+const decisionForm = document.querySelector("#decision-form");
+const decisionTitle = document.querySelector("#decision-title");
+const decisionDescription = document.querySelector("#decision-description");
+const decisionPasscode = document.querySelector("#decision-passcode");
+const decisionError = document.querySelector("#decision-error");
+const decisionConfirm = document.querySelector("#decision-confirm");
+const decisionCancel = document.querySelector("#decision-cancel");
+let pendingDecision = null;
 
 async function init() {
   if (!isSupabaseConfigured || !supabase) {
@@ -176,37 +185,79 @@ function makeDecisionButton(request, decision, label, enabled) {
   button.textContent = label;
   button.disabled = !enabled;
   button.addEventListener("click", async () => {
-    const passcode = window.prompt("Ingresa la clave para confirmar esta acción:");
-    if (passcode !== "2002") {
-      if (passcode !== null) {
-        status.textContent = "Clave incorrecta. No se realizó ningún cambio.";
-        status.classList.add("error");
-      }
-      return;
-    }
-    if (decision === "rechazado" && !window.confirm("¿Confirmas que quieres rechazar esta solicitud?")) return;
-    button.disabled = true;
-    status.textContent = "Actualizando solicitud...";
-    status.classList.remove("error");
-
-    const { error } = await supabase
-      .from("quote_requests")
-      .update({ status: decision })
-      .eq("id", request.id);
-
-    if (error) {
-      console.error("No se pudo actualizar la solicitud:", error);
-      status.textContent = "No se pudo guardar la decisión. Comprueba los estados permitidos y las políticas RLS.";
-      status.classList.add("error");
-      button.disabled = false;
-      return;
-    }
-
-    request.status = decision;
-    await loadDashboard();
+    openDecisionDialog(request, decision, button);
   });
   return button;
 }
+
+function openDecisionDialog(request, decision, button) {
+  pendingDecision = { request, decision, button };
+  const isRejecting = decision === "rechazado";
+  decisionDialog.classList.toggle("is-rejecting", isRejecting);
+  decisionTitle.textContent = isRejecting ? "Rechazar solicitud" : "Aceptar solicitud";
+  decisionDescription.textContent = isRejecting
+    ? `Vas a rechazar la solicitud de ${request.name}. Ingresa la clave para confirmar.`
+    : `Vas a aceptar la solicitud de ${request.name}. Ingresa la clave para confirmar.`;
+  decisionConfirm.textContent = isRejecting ? "Sí, rechazar" : "Sí, aceptar";
+  decisionError.textContent = "";
+  decisionPasscode.value = "";
+  decisionDialog.showModal();
+  decisionPasscode.focus();
+}
+
+decisionForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!pendingDecision) return;
+
+  if (decisionPasscode.value !== "2002") {
+    decisionError.textContent = "La clave no es correcta. No se realizó ningún cambio.";
+    decisionPasscode.value = "";
+    decisionPasscode.focus();
+    return;
+  }
+
+  const { request, decision, button } = pendingDecision;
+  decisionConfirm.disabled = true;
+  decisionCancel.disabled = true;
+  decisionPasscode.disabled = true;
+  decisionConfirm.textContent = "Guardando...";
+
+  const { error } = await supabase
+    .from("quote_requests")
+    .update({ status: decision })
+    .eq("id", request.id);
+
+  if (error) {
+    console.error("No se pudo actualizar la solicitud:", error);
+    decisionError.textContent = "No se pudo guardar la decisión. Revisa los permisos y estados de Supabase.";
+    decisionConfirm.disabled = false;
+    decisionCancel.disabled = false;
+    decisionPasscode.disabled = false;
+    decisionConfirm.textContent = decision === "rechazado" ? "Sí, rechazar" : "Sí, aceptar";
+    return;
+  }
+
+  request.status = decision;
+  button.disabled = true;
+  decisionDialog.close();
+  pendingDecision = null;
+  decisionConfirm.disabled = false;
+  decisionCancel.disabled = false;
+  decisionPasscode.disabled = false;
+  decisionConfirm.textContent = "Confirmar";
+  await loadDashboard();
+});
+
+decisionCancel?.addEventListener("click", () => decisionDialog.close());
+decisionDialog?.addEventListener("close", () => {
+  pendingDecision = null;
+  decisionForm.reset();
+  decisionError.textContent = "";
+  decisionConfirm.disabled = false;
+  decisionCancel.disabled = false;
+  decisionPasscode.disabled = false;
+  decisionConfirm.textContent = "Confirmar";
+});
 
 logout?.addEventListener("click", async () => {
   if (supabase) await supabase.auth.signOut();

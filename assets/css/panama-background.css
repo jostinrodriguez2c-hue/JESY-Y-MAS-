@@ -69,8 +69,159 @@ main.section::before {
   backdrop-filter: blur(5px);
 }
 
+.decision-dialog {
+  width: min(440px, calc(100% - 32px));
+  max-width: none;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  color: #172b42;
+  box-shadow: 0 28px 90px rgba(8, 24, 40, .32);
+}
+
+.decision-dialog::backdrop {
+  background: rgba(9, 24, 39, .66);
+  backdrop-filter: blur(5px);
+}
+
+.decision-dialog-card {
+  position: relative;
+  padding: 34px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .85);
+  border-radius: 20px;
+  background:
+    linear-gradient(rgba(255, 255, 255, .93), rgba(255, 255, 255, .95)),
+    url("../images/panama-city.png") center / cover;
+}
+
+.decision-dialog-card::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 5px;
+  background: linear-gradient(90deg, #e58a32, #f3b36c);
+  content: "";
+}
+
+.decision-dialog-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 20px;
+  place-items: center;
+  border-radius: 14px;
+  background: #e8f6ee;
+  color: #216b40;
+  font-size: 23px;
+  font-weight: 800;
+}
+
+.decision-dialog.is-rejecting .decision-dialog-icon {
+  background: #fff0ee;
+  color: #a43d32;
+}
+
+.decision-dialog-card .eyebrow {
+  margin-bottom: 8px;
+}
+
+.decision-dialog-card h2 {
+  margin: 0 0 8px;
+  color: #10263d;
+  font: 800 25px/1.2 Montserrat, Inter, sans-serif;
+}
+
+.decision-dialog-copy {
+  margin: 0 0 23px;
+  color: #526579;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.decision-passcode-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #243a50;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.decision-dialog-card input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid #d5dee7;
+  border-radius: 9px;
+  outline: 0;
+  background: rgba(255, 255, 255, .93);
+  color: #172b42;
+  font: 600 16px Inter, sans-serif;
+  letter-spacing: .22em;
+}
+
+.decision-dialog-card input:focus {
+  border-color: #e58a32;
+  box-shadow: 0 0 0 3px rgba(229, 138, 50, .17);
+}
+
+.decision-dialog-error {
+  min-height: 20px;
+  margin: 8px 0 4px;
+  color: #a43d32;
+  font-size: 11px;
+}
+
+.decision-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.decision-dialog-actions button {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font: 700 12px Inter, sans-serif;
+  cursor: pointer;
+  transition: background .18s, transform .18s;
+}
+
+.decision-dialog-actions button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.decision-dialog-actions button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.decision-cancel-button {
+  border-color: #d7dfe7 !important;
+  background: white;
+  color: #40546a;
+}
+
+.decision-confirm-button {
+  background: #216b40;
+  color: white;
+}
+
+.decision-dialog.is-rejecting .decision-confirm-button {
+  background: #b7473b;
+}
+
 @media (max-width: 700px) {
   body {
     background-attachment: scroll;
+  }
+
+  .decision-dialog-card {
+    padding: 27px 22px;
   }
 }
