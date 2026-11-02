@@ -59,7 +59,7 @@
       <div class="requests-heading">
         <div><p class="eyebrow">COTIZACIONES</p><h2 id="requests-heading">Solicitudes recibidas</h2></div>
         <div class="requests-toolbar">
-          <div class="request-filter">
+          <div class="request-filter" id="request-filter-controls" hidden>
             <button id="request-filter-toggle" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="request-filter-menu">Filtrar solicitudes</button>
             <div id="request-filter-menu" class="request-filter-menu" aria-label="Filtrar solicitudes">
               <button type="button" data-request-filter="accepted">Aceptadas <span id="accepted-count">0</span></button>
@@ -73,7 +73,7 @@
       <p id="dashboard-status" class="form-status" role="status" aria-live="polite"></p>
       <div class="requests-table-wrap">
         <table class="requests-table">
-          <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Descripción</th><th>Estado</th><th>Decisión</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Cliente</th><th>Servicio</th><th>Descripción</th><th>Estado</th><th>Acciones</th></tr></thead>
           <tbody id="quotes-table"><tr><td colspan="6">Cargando solicitudes...</td></tr></tbody>
         </table>
       </div>
@@ -91,6 +91,19 @@
       <div class="decision-dialog-actions">
         <button id="decision-cancel" class="decision-cancel-button" type="button">Cancelar</button>
         <button id="decision-confirm" class="decision-confirm-button" type="submit">Confirmar</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="hide-request-dialog" class="decision-dialog" aria-labelledby="hide-request-title" aria-describedby="hide-request-description">
+    <form id="hide-request-form" class="decision-dialog-card" novalidate>
+      <div class="decision-dialog-icon hide-request-dialog-icon" aria-hidden="true">⌑</div>
+      <p class="eyebrow">GESTIÓN DE SOLICITUDES</p>
+      <h2 id="hide-request-title">Ocultar solicitud</h2>
+      <p id="hide-request-description" class="decision-dialog-copy">La solicitud dejará de aparecer en esta lista, pero seguirá guardada en Supabase.</p>
+      <p id="hide-request-error" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="hide-request-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="hide-request-confirm" class="decision-confirm-button hide-request-confirm-button" type="submit">Ocultar</button>
       </div>
     </form>
   </dialog>

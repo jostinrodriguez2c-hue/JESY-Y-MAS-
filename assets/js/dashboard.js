@@ -8,6 +8,7 @@ const quotesTable = document.querySelector("#quotes-table");
 const refreshButton = document.querySelector("#refresh-quotes");
 const requestFilterToggle = document.querySelector("#request-filter-toggle");
 const requestFilterMenu = document.querySelector("#request-filter-menu");
+const requestFilterControls = document.querySelector("#request-filter-controls");
 const decisionDialog = document.querySelector("#decision-dialog");
 const decisionForm = document.querySelector("#decision-form");
 const decisionTitle = document.querySelector("#decision-title");
@@ -16,6 +17,12 @@ const decisionPasscode = document.querySelector("#decision-passcode");
 const decisionError = document.querySelector("#decision-error");
 const decisionConfirm = document.querySelector("#decision-confirm");
 const decisionCancel = document.querySelector("#decision-cancel");
+const hideRequestDialog = document.querySelector("#hide-request-dialog");
+const hideRequestForm = document.querySelector("#hide-request-form");
+const hideRequestDescription = document.querySelector("#hide-request-description");
+const hideRequestError = document.querySelector("#hide-request-error");
+const hideRequestConfirm = document.querySelector("#hide-request-confirm");
+const hideRequestCancel = document.querySelector("#hide-request-cancel");
 const contentManagement = document.querySelector("#content-management");
 const managementStatus = document.querySelector("#management-status");
 const projectsTable = document.querySelector("#projects-table");
@@ -46,6 +53,8 @@ let managedServices = [];
 let pendingContentSelection = null;
 let allRequests = [];
 let activeRequestFilter = "all";
+let pendingHiddenRequest = null;
+let canManageRequests = false;
 
 const projectLocations = [
   "Panamá",
@@ -106,6 +115,8 @@ async function init() {
   }
 
   welcome.textContent = `Sesión iniciada: ${user.email} · Rol: ${role}`;
+  canManageRequests = role === "admin" || role === "superadmin";
+  requestFilterControls.hidden = !canManageRequests;
   if (role === "admin" || role === "superadmin") {
     contentManagement.hidden = false;
     await loadContentManagement();
@@ -626,7 +637,8 @@ async function loadDashboard() {
     supabase.from("services").select("id", { count: "exact", head: true }),
     supabase
       .from("quote_requests")
-      .select("id, name, email, phone, service, location, description, attachments, status, created_at")
+      .select("id, name, email, phone, service, location, description, attachments, status, created_at, hidden_from_admin")
+      .eq("hidden_from_admin", false)
       .order("created_at", { ascending: false })
   ]);
 
@@ -743,6 +755,15 @@ function renderRequests(requests) {
       makeDecisionButton(request, "nuevo", "Pendiente", canPend),
       makeDecisionButton(request, "rechazado", "Rechazar", canReject)
     );
+    if (canManageRequests) {
+      const hideButton = document.createElement("button");
+      hideButton.type = "button";
+      hideButton.className = "decision-button decision-hide";
+      hideButton.textContent = "Eliminar";
+      hideButton.setAttribute("aria-label", `Eliminar de la lista la solicitud de ${request.name}`);
+      hideButton.addEventListener("click", () => openHideRequestDialog(request));
+      actions.append(hideButton);
+    }
     row.append(actions);
     quotesTable.append(row);
   });
@@ -803,6 +824,54 @@ document.addEventListener("click", (event) => {
   if (event.target.closest(".request-filter")) return;
   requestFilterToggle?.setAttribute("aria-expanded", "false");
   requestFilterMenu?.classList.remove("is-open");
+});
+
+function openHideRequestDialog(request) {
+  pendingHiddenRequest = request;
+  hideRequestDescription.textContent =
+    `La solicitud de ${request.name} dejará de aparecer en esta lista, pero seguirá guardada en Supabase.`;
+  hideRequestError.textContent = "";
+  hideRequestConfirm.disabled = false;
+  hideRequestConfirm.textContent = "Ocultar";
+  hideRequestDialog.showModal();
+}
+
+hideRequestForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!pendingHiddenRequest) return;
+
+  hideRequestConfirm.disabled = true;
+  hideRequestCancel.disabled = true;
+  hideRequestConfirm.textContent = "Ocultando...";
+  const { data, error } = await supabase
+    .from("quote_requests")
+    .update({ hidden_from_admin: true })
+    .eq("id", pendingHiddenRequest.id)
+    .select("id");
+
+  if (error || !data?.length) {
+    console.error("No se pudo ocultar la solicitud:", error || "No se actualizó ninguna fila.");
+    hideRequestError.textContent = "No se pudo ocultar la solicitud. Comprueba el SQL y los permisos administrativos.";
+    hideRequestConfirm.disabled = false;
+    hideRequestCancel.disabled = false;
+    hideRequestConfirm.textContent = "Ocultar";
+    return;
+  }
+
+  allRequests = allRequests.filter((request) => request.id !== pendingHiddenRequest.id);
+  updateRequestFilterCounts(allRequests);
+  renderRequests(allRequests);
+  hideRequestDialog.close();
+  status.textContent = "Solicitud ocultada de la lista. Sigue guardada en Supabase.";
+});
+
+hideRequestCancel?.addEventListener("click", () => hideRequestDialog.close());
+hideRequestDialog?.addEventListener("close", () => {
+  pendingHiddenRequest = null;
+  hideRequestError.textContent = "";
+  hideRequestConfirm.disabled = false;
+  hideRequestCancel.disabled = false;
+  hideRequestConfirm.textContent = "Ocultar";
 });
 
 function appendCell(row, text) {

@@ -319,6 +319,35 @@ body.admin-body .request-filter-menu button span {
   font-size: 10px;
 }
 
+body.admin-body .request-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 290px;
+  flex-wrap: wrap;
+}
+
+body.admin-body .decision-button.decision-hide {
+  border-color: #efc5bf;
+  background: #fff8f7;
+  color: #a43d32;
+}
+
+body.admin-body .decision-button.decision-hide:hover:not(:disabled) {
+  border-color: #b7473b;
+  background: #fff0ee;
+  color: #8e2d25;
+}
+
+.hide-request-dialog-icon {
+  background: #fff0ee;
+  color: #a43d32;
+}
+
+.hide-request-confirm-button {
+  background: #b7473b;
+}
+
 .management-table {
   min-width: 620px;
 }
