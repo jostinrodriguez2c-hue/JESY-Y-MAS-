@@ -4,13 +4,13 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
 
 const SUPABASE_URL = "https://xolmulhkvcthxbwsgjto.supabase.co";
-const SUPABASE_ANON_KEY = "sb_publishable_W0LEQMIjN0ylgrY9Uky8nQ_ttgq5e32";
+const SUPABASE_ANON_KEY = "PEGA_AQUI_LA_CLAVE_PUBLISHABLE_COMPLETA";
 
 const configured =
   SUPABASE_URL.startsWith("https://") &&
   !SUPABASE_URL.includes("TU-PROYECTO") &&
-  SUPABASE_ANON_KEY.length > 20 &&
-  !SUPABASE_ANON_KEY.includes("TU_CLAVE");
+  SUPABASE_ANON_KEY.startsWith("sb_publishable_") &&
+  SUPABASE_ANON_KEY.length > 30;
 
 export const supabase = configured
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
