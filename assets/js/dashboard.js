@@ -65,6 +65,18 @@ const toggleRoleManagement = document.querySelector("#toggle-role-management");
 const roleUsersTable = document.querySelector("#role-users-table");
 const roleManagementStatus = document.querySelector("#role-management-status");
 const refreshRoleUsers = document.querySelector("#refresh-role-users");
+const rolePanels = document.querySelectorAll("[data-role-panel]");
+const rolePanelButtons = document.querySelectorAll("[data-role-panel-button]");
+const addRoleForm = document.querySelector("#add-role-form");
+const addRoleName = document.querySelector("#add-role-name");
+const addRolePermissions = document.querySelector("#add-role-permissions");
+const editRoleForm = document.querySelector("#edit-role-form");
+const editRoleSelect = document.querySelector("#edit-role-select");
+const editRoleName = document.querySelector("#edit-role-name");
+const editRolePermissions = document.querySelector("#edit-role-permissions");
+const deleteRoleForm = document.querySelector("#delete-role-form");
+const deleteRoleSelect = document.querySelector("#delete-role-select");
+const deleteRoleAssigned = document.querySelector("#delete-role-assigned");
 const closeAccessRequests = document.querySelector("#close-access-requests");
 const closeRoleManagement = document.querySelector("#close-role-management");
 const activityHistoryDialog = document.querySelector("#activity-history-dialog");
@@ -90,8 +102,69 @@ let canManageRequests = false;
 let currentAdminRole = null;
 let currentUserId = null;
 let canManageSuperadminRole = false;
+let adminPermissions = {};
+let adminRoles = [];
+let adminRoleUsers = [];
 let activityHistoryPage = 0;
 const activityHistoryPageSize = 50;
+const permissionGroups = [
+  {
+    label: "Cotizaciones",
+    permissions: [
+      { key: "quotes.view", label: "Ver cotizaciones y sus detalles" },
+      { key: "quotes.update", label: "Cambiar su estado" },
+      { key: "quotes.hide", label: "Ocultarlas de la lista sin borrarlas" }
+    ]
+  },
+  {
+    label: "Proyectos",
+    permissions: [
+      { key: "projects.view", label: "Ver proyectos en el panel" },
+      { key: "projects.create", label: "Crear proyectos" },
+      { key: "projects.update", label: "Editar proyectos" },
+      { key: "projects.delete", label: "Eliminar proyectos" },
+      { key: "projects.publish", label: "Publicar y ocultar proyectos" }
+    ]
+  },
+  {
+    label: "Servicios",
+    permissions: [
+      { key: "services.view", label: "Ver servicios en el panel" },
+      { key: "services.create", label: "Crear servicios" },
+      { key: "services.update", label: "Editar servicios" },
+      { key: "services.delete", label: "Eliminar servicios" },
+      { key: "services.publish", label: "Publicar y ocultar servicios" }
+    ]
+  },
+  {
+    label: "Solicitudes de acceso",
+    permissions: [
+      { key: "access_requests.view", label: "Ver solicitudes" },
+      { key: "access_requests.reject", label: "Rechazar solicitudes" }
+    ]
+  },
+  {
+    label: "Historial",
+    permissions: [
+      { key: "activity_history.view", label: "Ver el historial de actividad" }
+    ]
+  }
+];
+const permissionRequirements = {
+  "quotes.update": ["quotes.view"],
+  "quotes.hide": ["quotes.view"],
+  "projects.update": ["projects.view"],
+  "projects.delete": ["projects.view"],
+  "projects.publish": ["projects.view", "projects.update"],
+  "services.update": ["services.view"],
+  "services.delete": ["services.view"],
+  "services.publish": ["services.view", "services.update"],
+  "access_requests.reject": ["access_requests.view"]
+};
+
+function hasPermission(permission) {
+  return adminPermissions[permission] === true;
+}
 
 const projectLocations = [
   "Panamá",
@@ -145,21 +218,50 @@ async function init() {
 
   const { data: role, error: roleError } = await supabase.rpc("access_admin_role");
 
-  if (roleError || !["superadmin", "admin", "soporte", "support"].includes(role)) {
+  if (roleError || !role) {
     await supabase.auth.signOut();
     window.location.href = "login.html";
     return;
   }
 
+  const [permissionsResult, primarySuperadminResult] = await Promise.all([
+    supabase.rpc("get_my_admin_permissions"),
+    supabase.rpc("is_primary_superadmin")
+  ]);
+  if (permissionsResult.error || primarySuperadminResult.error) {
+    console.error("No se pudieron cargar permisos del dashboard:", {
+      permissions: permissionsResult.error,
+      primarySuperadmin: primarySuperadminResult.error
+    });
+    welcome.textContent = "No se pudieron cargar los permisos. Aplica la migración supabase/role-permissions.sql.";
+    return;
+  }
+
   currentAdminRole = role;
   currentUserId = user.id;
+  adminPermissions = permissionsResult.data || {};
+  canManageSuperadminRole = primarySuperadminResult.data === true;
+  populateRolePermissionFields(addRolePermissions);
+  showRolePanel("add");
   welcome.textContent = `Sesión iniciada: ${user.email} · Rol: ${role}`;
-  canManageRequests = role === "admin" || role === "superadmin";
+  canManageRequests = hasPermission("quotes.view");
   requestFilterControls.hidden = !canManageRequests;
-  toggleAccessRequests.hidden = !canManageRequests;
-  toggleActivityHistory.hidden = !canManageRequests;
-  toggleRoleManagement.hidden = !canManageRequests;
-  if (role === "admin" || role === "superadmin") {
+  toggleAccessRequests.hidden = !hasPermission("access_requests.view");
+  toggleActivityHistory.hidden = !hasPermission("activity_history.view");
+  toggleRoleManagement.hidden = !canManageSuperadminRole;
+  document.querySelector(".requests-section").hidden = !canManageRequests;
+  const canViewProjects = ["view", "create", "update", "delete"].some((action) => hasPermission(`projects.${action}`));
+  const canViewServices = ["view", "create", "update", "delete"].some((action) => hasPermission(`services.${action}`));
+  contentManagement.hidden = !canViewProjects && !canViewServices;
+  document.querySelector("#manage-projects-heading").closest(".management-section").hidden = !canViewProjects;
+  document.querySelector("#manage-services-heading").closest(".management-section").hidden = !canViewServices;
+  document.querySelector("#add-project").hidden = !hasPermission("projects.create");
+  document.querySelector("#edit-project").hidden = !hasPermission("projects.update");
+  document.querySelector("#delete-project").hidden = !hasPermission("projects.delete");
+  document.querySelector("#add-service").hidden = !hasPermission("services.create");
+  document.querySelector("#edit-service").hidden = !hasPermission("services.update");
+  document.querySelector("#delete-service").hidden = !hasPermission("services.delete");
+  if (canViewProjects || canViewServices) {
     contentManagement.hidden = false;
     await loadContentManagement();
   }
@@ -209,31 +311,127 @@ async function loadAccessRequests() {
   accessRequestsStatus.textContent = "";
 }
 
-async function loadRoleUsers() {
-  roleManagementStatus.textContent = "Cargando cuentas...";
-  roleManagementStatus.classList.remove("error");
-  const { data, error } = await supabase.rpc("list_admin_role_users");
+function populateRolePermissionFields(container, permissions = {}) {
+  container.replaceChildren();
+  permissionGroups.forEach((group) => {
+    const fieldset = document.createElement("fieldset");
+    fieldset.className = "role-permission-group";
+    const legend = document.createElement("legend");
+    legend.textContent = group.label;
+    fieldset.append(legend);
 
-  if (error) {
-    console.error("No se pudieron cargar los roles de las cuentas:", error);
-    roleManagementStatus.textContent = "No se pudieron cargar las cuentas. Verifica que esté aplicada la configuración SQL de acceso administrativo.";
-    roleManagementStatus.classList.add("error");
-    roleUsersTable.replaceChildren(makeTableMessage("Error al cargar las cuentas.", 4));
-    return;
+    group.permissions.forEach((permission) => {
+      const label = document.createElement("label");
+      label.className = "role-permission-option";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.name = "permission";
+      checkbox.value = permission.key;
+      checkbox.checked = permissions[permission.key] === true;
+      const text = document.createElement("span");
+      text.textContent = permission.label;
+      label.append(checkbox, text);
+      fieldset.append(label);
+      checkbox.addEventListener("change", () => {
+        const dependentKeys = Object.entries(permissionRequirements)
+          .filter(([, requirements]) => requirements.includes(permission.key))
+          .map(([key]) => key);
+        if (checkbox.checked) {
+          permissionRequirements[permission.key]?.forEach((requiredKey) => {
+            const required = container.querySelector(`[name="permission"][value="${requiredKey}"]`);
+            if (required) required.checked = true;
+          });
+        } else {
+          dependentKeys.forEach((key) => {
+            const dependent = container.querySelector(`[name="permission"][value="${key}"]`);
+            if (dependent) dependent.checked = false;
+          });
+        }
+      });
+    });
+    container.append(fieldset);
+  });
+}
+
+function readRolePermissions(container) {
+  return Object.fromEntries(
+    permissionGroups.flatMap((group) =>
+      group.permissions.map((permission) => [
+        permission.key,
+        Boolean(container.querySelector(`[name="permission"][value="${permission.key}"]`)?.checked)
+      ])
+    )
+  );
+}
+
+function roleKeyFromName(name) {
+  return name.normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 40);
+}
+
+function updateRoleSelectors() {
+  const selectedEditRole = editRoleSelect.value;
+  const selectedDeleteRole = deleteRoleSelect.value;
+  const fillSelect = (select, roles, placeholder) => {
+    select.replaceChildren();
+    const emptyOption = document.createElement("option");
+    emptyOption.value = "";
+    emptyOption.textContent = placeholder;
+    select.append(emptyOption);
+    roles.forEach((role) => {
+      const option = document.createElement("option");
+      option.value = role.role_key;
+      option.textContent = role.is_system
+        ? `${role.display_name} (del sistema)`
+        : role.display_name;
+      select.append(option);
+    });
+  };
+  fillSelect(editRoleSelect, adminRoles, "Selecciona un rol");
+  fillSelect(deleteRoleSelect, adminRoles.filter((role) => !role.is_system), "Selecciona un rol personalizado");
+  if (adminRoles.some((role) => role.role_key === selectedEditRole)) {
+    editRoleSelect.value = selectedEditRole;
   }
+  if (adminRoles.some((role) => role.role_key === selectedDeleteRole && !role.is_system)) {
+    deleteRoleSelect.value = selectedDeleteRole;
+  }
+  updateRoleEditor();
+  updateDeleteRoleStatus();
+}
 
-  canManageSuperadminRole = data.some((user) => user.can_manage_superadmin_role);
+function updateRoleEditor() {
+  const role = adminRoles.find((entry) => entry.role_key === editRoleSelect.value);
+  editRoleName.value = role?.display_name || "";
+  populateRolePermissionFields(editRolePermissions, role?.permissions || {});
+  const isLockedRole = !role || role.role_key === "superadmin";
+  editRoleName.disabled = isLockedRole;
+  editRolePermissions.querySelectorAll("input").forEach((input) => {
+    input.disabled = isLockedRole;
+  });
+  editRoleForm.querySelector('button[type="submit"]').disabled = isLockedRole;
+}
+
+function updateDeleteRoleStatus() {
+  const role = adminRoles.find((entry) => entry.role_key === deleteRoleSelect.value);
+  deleteRoleAssigned.textContent = role
+    ? `Cuentas asignadas: ${role.assigned_users}.`
+    : "";
+  deleteRoleForm.querySelector('button[type="submit"]').disabled =
+    !role || Number(role.assigned_users) > 0;
+}
+
+function renderAdminRoleUsers() {
   roleUsersTable.replaceChildren();
-  if (!canManageSuperadminRole) {
-    roleManagementStatus.textContent = "Solo el superadmin principal puede cambiar roles. Verifica que este usuario tenga rol superadmin y esté configurado como primary_superadmin_id en Supabase.";
-  }
-  if (!data.length) {
+  if (!adminRoleUsers.length) {
     roleUsersTable.append(makeTableMessage("No hay cuentas disponibles.", 4));
-    if (canManageSuperadminRole) roleManagementStatus.textContent = "";
     return;
   }
 
-  data.forEach((user) => {
+  adminRoleUsers.forEach((user) => {
     const row = document.createElement("tr");
     appendCell(row, user.full_name || "—");
     appendCell(row, user.email || "—");
@@ -242,22 +440,12 @@ async function loadRoleUsers() {
     const select = document.createElement("select");
     select.className = "role-select";
     select.setAttribute("aria-label", `Rol de ${user.full_name || user.email}`);
-    const options = [
-      { value: "support", label: "Soporte" },
-      { value: "editor", label: "Editor" },
-      { value: "admin", label: "Admin" },
-      { value: "superadmin", label: "Superadmin" }
-    ];
-    if (!options.some((option) => option.value === user.role)) {
-      options.unshift({ value: user.role, label: user.role });
-    }
-    options.forEach((option) => {
-      if (option.value === "superadmin" && !canManageSuperadminRole && user.role !== "superadmin") return;
-      const element = document.createElement("option");
-      element.value = option.value;
-      element.textContent = option.label;
-      element.selected = option.value === user.role;
-      select.append(element);
+    adminRoles.forEach((role) => {
+      const option = document.createElement("option");
+      option.value = role.role_key;
+      option.textContent = role.display_name;
+      option.selected = role.role_key === user.role;
+      select.append(option);
     });
     roleCell.append(select);
     row.append(roleCell);
@@ -270,25 +458,140 @@ async function loadRoleUsers() {
     save.textContent = "Guardar";
     const isCurrentUser = user.user_id === currentUserId;
     const isPrimaryOwner = user.is_primary_superadmin;
-    const cannotManageSuperadminTarget = user.role === "superadmin" && !canManageSuperadminRole;
-    select.disabled = !canManageSuperadminRole || isCurrentUser || isPrimaryOwner || cannotManageSuperadminTarget;
+    select.disabled = isCurrentUser || isPrimaryOwner;
     save.disabled = select.disabled;
-    if (!canManageSuperadminRole) {
-      save.title = "Solo el superadmin principal puede cambiar roles.";
-    } else if (isCurrentUser) {
-      save.title = "No puedes cambiar tu propio rol.";
-    } else if (isPrimaryOwner) {
-      save.title = "El superadmin principal no puede perder este rol.";
-    } else if (cannotManageSuperadminTarget) {
-      save.title = "Solo el superadmin principal puede cambiar el rol superadmin.";
-    }
+    if (isCurrentUser) save.title = "No puedes cambiar tu propio rol.";
+    if (isPrimaryOwner) save.title = "El rol del superadmin principal está protegido.";
     save.addEventListener("click", () => updateUserRole(user, select, save));
     actions.append(save);
     row.append(actions);
     roleUsersTable.append(row);
   });
-  if (canManageSuperadminRole) roleManagementStatus.textContent = "";
 }
+
+async function loadRoleManagement() {
+  roleManagementStatus.textContent = "Cargando roles y cuentas...";
+  roleManagementStatus.classList.remove("error");
+  const [rolesResult, usersResult] = await Promise.all([
+    supabase.rpc("list_admin_roles"),
+    supabase.rpc("list_admin_role_users")
+  ]);
+  if (rolesResult.error || usersResult.error) {
+    const error = rolesResult.error || usersResult.error;
+    console.error("No se pudieron cargar los roles:", error);
+    roleManagementStatus.textContent = `No se pudieron cargar los roles (${error.code || "error"}): ${error.message}`;
+    roleManagementStatus.classList.add("error");
+    return;
+  }
+
+  adminRoles = rolesResult.data || [];
+  adminRoleUsers = usersResult.data || [];
+  updateRoleSelectors();
+  renderAdminRoleUsers();
+  roleManagementStatus.textContent = "";
+}
+
+function showRolePanel(panelName) {
+  rolePanels.forEach((panel) => {
+    panel.hidden = panel.dataset.rolePanel !== panelName;
+  });
+  rolePanelButtons.forEach((button) => {
+    const selected = button.dataset.rolePanelButton === panelName;
+    button.classList.toggle("is-selected", selected);
+    button.setAttribute("aria-current", selected ? "page" : "false");
+  });
+}
+
+rolePanelButtons.forEach((button) => {
+  button.addEventListener("click", () => showRolePanel(button.dataset.rolePanelButton));
+});
+
+editRoleSelect?.addEventListener("change", updateRoleEditor);
+deleteRoleSelect?.addEventListener("change", updateDeleteRoleStatus);
+
+addRoleForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const displayName = addRoleName.value.trim();
+  const roleKey = roleKeyFromName(displayName);
+  if (roleKey.length < 2 || ["support", "editor", "admin", "superadmin"].includes(roleKey)) {
+    roleManagementStatus.textContent = "Ese nombre no genera un identificador válido o está reservado para un rol del sistema.";
+    roleManagementStatus.classList.add("error");
+    return;
+  }
+
+  const submit = addRoleForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  roleManagementStatus.textContent = "Creando rol...";
+  roleManagementStatus.classList.remove("error");
+  const { error } = await supabase.rpc("add_admin_role", {
+    p_role_key: roleKey,
+    p_display_name: displayName,
+    p_permissions: readRolePermissions(addRolePermissions)
+  });
+  submit.disabled = false;
+  if (error) {
+    console.error("No se pudo crear el rol:", error);
+    roleManagementStatus.textContent = `No se pudo crear el rol: ${error.message}`;
+    roleManagementStatus.classList.add("error");
+    return;
+  }
+
+  addRoleForm.reset();
+  populateRolePermissionFields(addRolePermissions);
+  await loadRoleManagement();
+  showRolePanel("assign");
+  roleManagementStatus.textContent = `Se creó el rol “${displayName}”.`;
+});
+
+editRoleForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const role = adminRoles.find((entry) => entry.role_key === editRoleSelect.value);
+  if (!role || role.role_key === "superadmin") return;
+  const submit = editRoleForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  roleManagementStatus.textContent = "Guardando permisos...";
+  roleManagementStatus.classList.remove("error");
+  const { error } = await supabase.rpc("update_admin_role", {
+    p_role_key: role.role_key,
+    p_display_name: editRoleName.value.trim(),
+    p_permissions: readRolePermissions(editRolePermissions)
+  });
+  submit.disabled = false;
+  if (error) {
+    console.error("No se pudieron guardar los permisos del rol:", error);
+    roleManagementStatus.textContent = `No se pudieron guardar los permisos: ${error.message}`;
+    roleManagementStatus.classList.add("error");
+    return;
+  }
+
+  await loadRoleManagement();
+  roleManagementStatus.textContent = `Se actualizaron los permisos de “${editRoleName.value.trim()}”.`;
+});
+
+deleteRoleForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const role = adminRoles.find((entry) => entry.role_key === deleteRoleSelect.value);
+  if (!role || role.is_system || Number(role.assigned_users) > 0) return;
+  if (!window.confirm(`¿Eliminar el rol “${role.display_name}”? Esta acción no se puede deshacer.`)) return;
+
+  const submit = deleteRoleForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  roleManagementStatus.textContent = "Eliminando rol...";
+  roleManagementStatus.classList.remove("error");
+  const { error } = await supabase.rpc("delete_admin_role", {
+    p_role_key: role.role_key
+  });
+  if (error) {
+    console.error("No se pudo eliminar el rol:", error);
+    roleManagementStatus.textContent = `No se pudo eliminar el rol: ${error.message}`;
+    roleManagementStatus.classList.add("error");
+    updateDeleteRoleStatus();
+    return;
+  }
+
+  await loadRoleManagement();
+  roleManagementStatus.textContent = `Se eliminó el rol “${role.display_name}”.`;
+});
 
 async function updateUserRole(user, select, button) {
   if (select.value === user.role) return;
@@ -304,7 +607,7 @@ async function updateUserRole(user, select, button) {
 
   if (error) {
     console.error("No se pudo actualizar el rol:", error);
-    roleManagementStatus.textContent = "No se pudo actualizar el rol. Comprueba tus permisos y la configuración SQL.";
+    roleManagementStatus.textContent = `No se pudo actualizar el rol: ${error.message}`;
     roleManagementStatus.classList.add("error");
     button.disabled = false;
     select.disabled = false;
@@ -312,7 +615,7 @@ async function updateUserRole(user, select, button) {
   }
 
   roleManagementStatus.textContent = `Rol actualizado para ${user.full_name || user.email}.`;
-  await loadRoleUsers();
+  await loadRoleManagement();
 }
 
 async function loadActivityHistory() {
@@ -375,6 +678,9 @@ function formatActivityAction(action) {
     "access_request.rejected": "Solicitud de acceso rechazada",
     "access_request.deleted": "Solicitud de acceso eliminada",
     "role.changed": "Rol actualizado",
+    "role.created": "Rol creado",
+    "role.updated": "Permisos de rol actualizados",
+    "role.deleted": "Rol eliminado",
     "quote.submitted": "Cotización recibida",
     "quote.status_changed": "Estado de cotización cambiado",
     "quote.hidden": "Cotización ocultada",
@@ -393,7 +699,7 @@ function formatActivityAction(action) {
 function formatActivityDetails(details) {
   if (!details || typeof details !== "object") return "—";
   return Object.entries(details)
-    .map(([key, value]) => `${key.replaceAll("_", " ")}: ${String(value)}`)
+    .map(([key, value]) => `${key.replaceAll("_", " ")}: ${value && typeof value === "object" ? JSON.stringify(value) : String(value)}`)
     .join(" · ") || "—";
 }
 
@@ -407,6 +713,9 @@ function makeAccessRequestButton(request, action) {
   if (action === "approve" && currentAdminRole !== "superadmin") {
     button.disabled = true;
     button.title = "Solo el superadministrador puede aprobar y generar códigos.";
+  } else if (action === "reject" && !hasPermission("access_requests.reject")) {
+    button.disabled = true;
+    button.title = "Tu rol no tiene permiso para rechazar solicitudes.";
   }
   button.addEventListener("click", () => {
     if (action === "approve") approveAccessRequest(request, button);
@@ -465,12 +774,16 @@ async function loadContentManagement() {
   managementStatus.textContent = "Cargando proyectos y servicios...";
   managementStatus.classList.remove("error");
   const [projects, services] = await Promise.all([
-    supabase.from("projects")
-      .select("id, name, description, location, service_type, status, completed_on, image_urls, published")
-      .order("created_at", { ascending: false }),
-    supabase.from("services")
-      .select("id, name, description, image_url, active")
-      .order("created_at", { ascending: true })
+    hasPermission("projects.view")
+      ? supabase.from("projects")
+        .select("id, name, description, location, service_type, status, completed_on, image_urls, published")
+        .order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    hasPermission("services.view")
+      ? supabase.from("services")
+        .select("id, name, description, image_url, active")
+        .order("created_at", { ascending: true })
+      : Promise.resolve({ data: [], error: null })
   ]);
 
   if (projects.error || services.error) {
@@ -673,7 +986,11 @@ function addContentCheckbox({ name, label, checked }) {
 }
 
 function openContentDialog(type, item = null) {
-  editingContent = { type, id: item?.id ?? null };
+  editingContent = {
+    type,
+    id: item?.id ?? null,
+    currentPublished: item?.published ?? item?.active ?? false
+  };
   contentFields.replaceChildren();
   contentError.textContent = "";
   contentDialogTitle.textContent = item
@@ -734,12 +1051,16 @@ function openContentDialog(type, item = null) {
       label: "Fotografías del proyecto",
       value: item?.image_urls?.join("\n")
     });
-    addContentCheckbox({ name: "published", label: "Mostrar este proyecto en la página pública", checked: item?.published ?? false });
+    if (hasPermission("projects.publish")) {
+      addContentCheckbox({ name: "published", label: "Mostrar este proyecto en la página pública", checked: item?.published ?? false });
+    }
   } else {
     addContentField({ name: "name", label: "Nombre del servicio *", value: item?.name, required: true });
     addContentField({ name: "description", label: "Descripción *", value: item?.description, multiline: true, required: true });
     addContentImageField({ name: "image_url", label: "Imagen del servicio", value: item?.image_url });
-    addContentCheckbox({ name: "active", label: "Mostrar este servicio en la página pública", checked: item?.active ?? true });
+    if (hasPermission("services.publish")) {
+      addContentCheckbox({ name: "active", label: "Mostrar este servicio en la página pública", checked: item?.active ?? true });
+    }
   }
 
   contentSave.textContent = item ? "Guardar cambios" : "Agregar";
@@ -786,7 +1107,9 @@ function readContentForm() {
       completed_on: String(formData.get("completed_on") || "") || null,
       image_urls: imageUrls,
       image_file: imageFile?.size ? imageFile : null,
-      published: formData.get("published") === "on"
+      published: hasPermission("projects.publish")
+        ? formData.get("published") === "on"
+        : editingContent.currentPublished
     };
   }
 
@@ -804,7 +1127,9 @@ function readContentForm() {
     description: String(formData.get("description") || "").trim(),
     image_url: normalizedImageUrl || null,
     image_file: imageFile?.size ? imageFile : null,
-    active: formData.get("active") === "on"
+    active: hasPermission("services.publish")
+      ? formData.get("active") === "on"
+      : editingContent.currentPublished
   };
 }
 
@@ -821,11 +1146,11 @@ function normalizeImageUrl(value) {
   return fileId ? `https://drive.google.com/uc?export=view&id=${encodeURIComponent(fileId)}` : value;
 }
 
-async function uploadCatalogImage(file) {
+async function uploadCatalogImage(file, type) {
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) throw new Error("No se pudo verificar la sesión administrativa para subir la imagen.");
   const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const path = `${user.id}/${crypto.randomUUID()}-${safeName}`;
+  const path = `${user.id}/${type === "project" ? "projects" : "services"}/${crypto.randomUUID()}-${safeName}`;
   const { error } = await supabase.storage.from("catalog-images").upload(path, file, {
     contentType: file.type,
     upsert: false
@@ -854,7 +1179,7 @@ contentForm?.addEventListener("submit", async (event) => {
   const table = editingContent.type === "project" ? "projects" : "services";
   try {
     if (payload.image_file) {
-      const uploadedImageUrl = await uploadCatalogImage(payload.image_file);
+      const uploadedImageUrl = await uploadCatalogImage(payload.image_file, editingContent.type);
       if (editingContent.type === "project") payload.image_urls.push(uploadedImageUrl);
       else payload.image_url = uploadedImageUrl;
     }
@@ -967,10 +1292,15 @@ async function loadDashboard() {
   status.classList.remove("error");
   quotesTable.replaceChildren(makeMessageRow("Cargando solicitudes..."));
 
+  if (!hasPermission("quotes.view")) return;
   const [quotes, projects, services, requests] = await Promise.all([
     supabase.from("quote_requests").select("id", { count: "exact", head: true }),
-    supabase.from("projects").select("id", { count: "exact", head: true }),
-    supabase.from("services").select("id", { count: "exact", head: true }),
+    hasPermission("projects.view")
+      ? supabase.from("projects").select("id", { count: "exact", head: true })
+      : Promise.resolve({ count: null, error: null }),
+    hasPermission("services.view")
+      ? supabase.from("services").select("id", { count: "exact", head: true })
+      : Promise.resolve({ count: null, error: null }),
     supabase
       .from("quote_requests")
       .select("id, name, email, phone, service, location, description, attachments, status, created_at, hidden_from_admin")
@@ -1074,15 +1404,15 @@ function renderRequests(requests) {
     actionCell.className = "request-actions-cell";
     const actions = document.createElement("div");
     actions.className = "request-actions";
-    const canAccept = request.status !== "aceptado";
-    const canPend = request.status !== "nuevo";
-    const canReject = request.status !== "rechazado";
+    const canAccept = hasPermission("quotes.update") && request.status !== "aceptado";
+    const canPend = hasPermission("quotes.update") && request.status !== "nuevo";
+    const canReject = hasPermission("quotes.update") && request.status !== "rechazado";
     actions.append(
       makeDecisionButton(request, "aceptado", "Aceptar", canAccept),
       makeDecisionButton(request, "nuevo", "Pendiente", canPend),
       makeDecisionButton(request, "rechazado", "Rechazar", canReject)
     );
-    if (canManageRequests) {
+    if (hasPermission("quotes.hide")) {
       const hideButton = document.createElement("button");
       hideButton.type = "button";
       hideButton.className = "decision-button decision-hide";
@@ -1420,9 +1750,9 @@ refreshAccessRequests?.addEventListener("click", loadAccessRequests);
 toggleRoleManagement?.addEventListener("click", async () => {
   roleManagement.showModal();
   toggleRoleManagement.setAttribute("aria-expanded", "true");
-  await loadRoleUsers();
+  await loadRoleManagement();
 });
-refreshRoleUsers?.addEventListener("click", loadRoleUsers);
+refreshRoleUsers?.addEventListener("click", loadRoleManagement);
 toggleActivityHistory?.addEventListener("click", async () => {
   activityHistoryPage = 0;
   activityHistoryDialog.showModal();

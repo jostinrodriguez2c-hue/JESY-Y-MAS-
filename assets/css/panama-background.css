@@ -1308,6 +1308,77 @@ body.admin-body .dashboard-admin-actions .btn {
   min-width: 110px;
 }
 
+.role-management-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 20px 0;
+}
+
+.role-management-nav .is-selected {
+  border-color: #e58a32;
+  color: #b95d13;
+}
+
+.role-management-panel {
+  padding: 20px;
+  border: 1px solid rgba(95, 116, 139, .25);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .68);
+}
+
+.role-management-panel h3 {
+  margin: 0 0 16px;
+}
+
+.role-editor-form {
+  display: grid;
+  gap: 14px;
+}
+
+.role-editor-form > input,
+.role-editor-form > select {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid #aeb9c4;
+  border-radius: 8px;
+  background: #fff;
+  color: #172b42;
+  font: inherit;
+}
+
+.role-permission-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.role-permission-group {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid rgba(95, 116, 139, .25);
+  border-radius: 10px;
+}
+
+.role-permission-group legend {
+  padding: 0 6px;
+  color: #29435d;
+  font-weight: 750;
+}
+
+.role-permission-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin: 9px 0;
+  color: #34485e;
+}
+
+.role-permission-option input {
+  margin-top: 3px;
+}
+
 .access-code-value {
   font-family: monospace !important;
   font-size: 18px !important;
@@ -1318,6 +1389,10 @@ body.admin-body .dashboard-admin-actions .btn {
   .login-panels,
   .login-inline-fields {
     grid-template-columns: 1fr;
+  }
+
+  .role-management-panel {
+    padding: 14px;
   }
 
   .login-wrap {

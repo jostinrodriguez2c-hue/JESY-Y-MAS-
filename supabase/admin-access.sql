@@ -187,20 +187,21 @@ end;
 $$;
 
 drop function if exists public.list_admin_activity(integer);
+drop function if exists public.list_admin_activity(integer, integer);
 
 create or replace function public.list_admin_activity(
   p_limit integer default 50,
   p_offset integer default 0
 )
 returns table (
-  id uuid,
+  id text,
   actor_name text,
   actor_email text,
   action text,
   entity_type text,
-  entity_id uuid,
+  entity_id text,
   details jsonb,
-  created_at timestamptz,
+  created_at text,
   total_count bigint
 )
 language plpgsql
@@ -218,14 +219,14 @@ begin
 
   return query
     select
-      activity.id,
-      coalesce(profile.full_name, ''),
+      activity.id::text,
+      coalesce(profile.full_name::text, ''),
       users.email::text,
-      activity.action,
-      activity.entity_type,
-      activity.entity_id,
-      activity.details,
-      activity.created_at,
+      activity.action::text,
+      activity.entity_type::text,
+      activity.entity_id::text,
+      to_jsonb(activity.details),
+      activity.created_at::text,
       count(*) over ()::bigint
     from public.activity_log as activity
     left join public.profiles as profile on profile.id = activity.actor_id

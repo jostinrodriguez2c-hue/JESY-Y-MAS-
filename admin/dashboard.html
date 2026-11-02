@@ -112,14 +112,53 @@
           <button id="close-role-management" class="btn btn-dark" type="button">Cerrar</button>
         </div>
       </div>
-      <p class="muted">Solo el superadmin principal puede cambiar el rol de las cuentas. Administra los roles de soporte, editor, admin y superadmin.</p>
+      <p class="muted">Crea roles personalizados y activa solo los permisos que necesite cada uno. Solo el superadmin principal puede administrar roles; aprobar accesos y emitir códigos sigue reservado a superadmins. El superadmin principal no se puede asignar, editar ni eliminar desde aquí.</p>
       <p id="role-management-status" class="form-status" role="status" aria-live="polite"></p>
-      <div class="requests-table-wrap">
-        <table class="requests-table role-management-table">
-          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acciones</th></tr></thead>
-          <tbody id="role-users-table"><tr><td colspan="4">Abre esta ventana para cargar las cuentas.</td></tr></tbody>
-        </table>
-      </div>
+      <nav class="role-management-nav" aria-label="Administrar roles">
+        <button class="btn btn-dark is-selected" type="button" data-role-panel-button="add">Agregar roles</button>
+        <button class="btn btn-dark" type="button" data-role-panel-button="edit">Editar roles</button>
+        <button class="btn btn-dark" type="button" data-role-panel-button="delete">Eliminar roles</button>
+        <button class="btn btn-dark" type="button" data-role-panel-button="assign">Asignar roles</button>
+      </nav>
+      <section class="role-management-panel" data-role-panel="add" aria-labelledby="add-role-heading">
+        <h3 id="add-role-heading">Agregar un rol</h3>
+        <form id="add-role-form" class="role-editor-form">
+          <label class="content-field" for="add-role-name">Nombre del rol</label>
+          <input id="add-role-name" name="display_name" maxlength="60" required>
+          <div id="add-role-permissions" class="role-permission-groups"></div>
+          <button class="btn btn-orange" type="submit">Crear rol</button>
+        </form>
+      </section>
+      <section class="role-management-panel" data-role-panel="edit" aria-labelledby="edit-role-heading" hidden>
+        <h3 id="edit-role-heading">Editar permisos de un rol</h3>
+        <form id="edit-role-form" class="role-editor-form">
+          <label class="content-field" for="edit-role-select">Rol</label>
+          <select id="edit-role-select" name="role_key" required></select>
+          <label class="content-field" for="edit-role-name">Nombre visible</label>
+          <input id="edit-role-name" name="display_name" maxlength="60" required>
+          <div id="edit-role-permissions" class="role-permission-groups"></div>
+          <button class="btn btn-orange" type="submit">Guardar cambios</button>
+        </form>
+      </section>
+      <section class="role-management-panel" data-role-panel="delete" aria-labelledby="delete-role-heading" hidden>
+        <h3 id="delete-role-heading">Eliminar un rol personalizado</h3>
+        <p class="muted">Los roles del sistema no se pueden eliminar. Primero reasigna las cuentas que usen el rol seleccionado.</p>
+        <form id="delete-role-form" class="role-editor-form">
+          <label class="content-field" for="delete-role-select">Rol personalizado</label>
+          <select id="delete-role-select" name="role_key" required></select>
+          <p id="delete-role-assigned" class="muted" aria-live="polite"></p>
+          <button class="btn btn-dark management-toolbar-delete" type="submit">Eliminar rol</button>
+        </form>
+      </section>
+      <section class="role-management-panel" data-role-panel="assign" aria-labelledby="assign-role-heading" hidden>
+        <h3 id="assign-role-heading">Asignar roles a las cuentas</h3>
+        <div class="requests-table-wrap">
+          <table class="requests-table role-management-table">
+            <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acciones</th></tr></thead>
+            <tbody id="role-users-table"><tr><td colspan="4">Abre esta ventana para cargar las cuentas.</td></tr></tbody>
+          </table>
+        </div>
+        </section>
     </section>
   </dialog>
   <dialog id="activity-history-dialog" class="decision-dialog admin-management-dialog" aria-labelledby="activity-history-heading">
@@ -245,6 +284,6 @@
       </div>
     </form>
   </dialog>
-  <script type="module" src="../assets/js/dashboard.js?v=20261102-audit-fix"></script>
+  <script type="module" src="../assets/js/dashboard.js?v=20261102-role-permissions"></script>
 </body>
 </html>
