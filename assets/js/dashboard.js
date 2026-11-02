@@ -60,6 +60,11 @@ const accessCodeEmail = document.querySelector("#access-code-email");
 const accessCodeDescription = document.querySelector("#access-code-description");
 const copyAccessCode = document.querySelector("#copy-access-code");
 const closeAccessCode = document.querySelector("#close-access-code");
+const roleManagement = document.querySelector("#role-management");
+const toggleRoleManagement = document.querySelector("#toggle-role-management");
+const roleUsersTable = document.querySelector("#role-users-table");
+const roleManagementStatus = document.querySelector("#role-management-status");
+const refreshRoleUsers = document.querySelector("#refresh-role-users");
 let pendingDecision = null;
 let editingContent = null;
 let deletingContent = null;
@@ -72,6 +77,8 @@ let activeRequestFilter = "all";
 let pendingHiddenRequest = null;
 let canManageRequests = false;
 let currentAdminRole = null;
+let currentUserId = null;
+let canManageSuperadminRole = false;
 
 const projectLocations = [
   "Panamá",
@@ -132,10 +139,12 @@ async function init() {
   }
 
   currentAdminRole = role;
+  currentUserId = user.id;
   welcome.textContent = `Sesión iniciada: ${user.email} · Rol: ${role}`;
   canManageRequests = role === "admin" || role === "superadmin";
   requestFilterControls.hidden = !canManageRequests;
   toggleAccessRequests.hidden = !canManageRequests;
+  toggleRoleManagement.hidden = !canManageRequests;
   if (role === "admin" || role === "superadmin") {
     contentManagement.hidden = false;
     await loadContentManagement();
@@ -186,6 +195,107 @@ async function loadAccessRequests() {
   accessRequestsStatus.textContent = "";
 }
 
+async function loadRoleUsers() {
+  roleManagementStatus.textContent = "Cargando cuentas...";
+  roleManagementStatus.classList.remove("error");
+  const { data, error } = await supabase.rpc("list_admin_role_users");
+
+  if (error) {
+    console.error("No se pudieron cargar los roles de las cuentas:", error);
+    roleManagementStatus.textContent = "No se pudieron cargar las cuentas. Verifica que esté aplicada la configuración SQL de acceso administrativo.";
+    roleManagementStatus.classList.add("error");
+    roleUsersTable.replaceChildren(makeTableMessage("Error al cargar las cuentas.", 4));
+    return;
+  }
+
+  canManageSuperadminRole = data.some((user) => user.can_manage_superadmin_role);
+  roleUsersTable.replaceChildren();
+  if (!data.length) {
+    roleUsersTable.append(makeTableMessage("No hay cuentas disponibles.", 4));
+    roleManagementStatus.textContent = "";
+    return;
+  }
+
+  data.forEach((user) => {
+    const row = document.createElement("tr");
+    appendCell(row, user.full_name || "—");
+    appendCell(row, user.email || "—");
+
+    const roleCell = document.createElement("td");
+    const select = document.createElement("select");
+    select.className = "role-select";
+    select.setAttribute("aria-label", `Rol de ${user.full_name || user.email}`);
+    const options = [
+      { value: "support", label: "Soporte" },
+      { value: "editor", label: "Editor" },
+      { value: "admin", label: "Admin" },
+      { value: "superadmin", label: "Superadmin" }
+    ];
+    if (!options.some((option) => option.value === user.role)) {
+      options.unshift({ value: user.role, label: user.role });
+    }
+    options.forEach((option) => {
+      if (option.value === "superadmin" && !canManageSuperadminRole && user.role !== "superadmin") return;
+      const element = document.createElement("option");
+      element.value = option.value;
+      element.textContent = option.label;
+      element.selected = option.value === user.role;
+      select.append(element);
+    });
+    roleCell.append(select);
+    row.append(roleCell);
+
+    const actions = document.createElement("td");
+    actions.className = "role-management-actions";
+    const save = document.createElement("button");
+    save.type = "button";
+    save.className = "btn btn-orange";
+    save.textContent = "Guardar";
+    const isCurrentUser = user.user_id === currentUserId;
+    const isPrimaryOwner = user.is_primary_superadmin;
+    const cannotManageSuperadminTarget = user.role === "superadmin" && !canManageSuperadminRole;
+    select.disabled = isCurrentUser || isPrimaryOwner || cannotManageSuperadminTarget;
+    save.disabled = select.disabled;
+    if (isCurrentUser) {
+      save.title = "No puedes cambiar tu propio rol.";
+    } else if (isPrimaryOwner) {
+      save.title = "El superadmin principal no puede perder este rol.";
+    } else if (cannotManageSuperadminTarget) {
+      save.title = "Solo el superadmin principal puede cambiar el rol superadmin.";
+    }
+    save.addEventListener("click", () => updateUserRole(user, select, save));
+    actions.append(save);
+    row.append(actions);
+    roleUsersTable.append(row);
+  });
+  roleManagementStatus.textContent = "";
+}
+
+async function updateUserRole(user, select, button) {
+  if (select.value === user.role) return;
+  button.disabled = true;
+  select.disabled = true;
+  roleManagementStatus.textContent = "Guardando rol...";
+  roleManagementStatus.classList.remove("error");
+
+  const { error } = await supabase.rpc("set_admin_user_role", {
+    p_user_id: user.user_id,
+    p_role: select.value
+  });
+
+  if (error) {
+    console.error("No se pudo actualizar el rol:", error);
+    roleManagementStatus.textContent = "No se pudo actualizar el rol. Comprueba tus permisos y la configuración SQL.";
+    roleManagementStatus.classList.add("error");
+    button.disabled = false;
+    select.disabled = false;
+    return;
+  }
+
+  roleManagementStatus.textContent = `Rol actualizado para ${user.full_name || user.email}.`;
+  await loadRoleUsers();
+}
+
 function makeAccessRequestButton(request, action) {
   const button = document.createElement("button");
   button.type = "button";
@@ -205,8 +315,7 @@ function makeAccessRequestButton(request, action) {
 }
 
 async function approveAccessRequest(request, button) {
-  const codeBytes = crypto.getRandomValues(new Uint8Array(16));
-  const code = Array.from(codeBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const code = String(crypto.getRandomValues(new Uint32Array(1))[0] % 10000).padStart(4, "0");
   button.disabled = true;
   accessRequestsStatus.textContent = "Aprobando solicitud...";
   accessRequestsStatus.classList.remove("error");
@@ -226,7 +335,7 @@ async function approveAccessRequest(request, button) {
 
   accessCodeValue.value = code;
   accessCodeEmail.textContent = `Correo aprobado: ${request.email}`;
-  accessCodeDescription.textContent = "Entrega este código personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.";
+  accessCodeDescription.textContent = "Entrega este código de 4 dígitos personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.";
   accessCodeDialog.showModal();
   await loadAccessRequests();
 }
@@ -1201,11 +1310,19 @@ toggleAccessRequests?.addEventListener("click", async () => {
   if (isOpening) await loadAccessRequests();
 });
 refreshAccessRequests?.addEventListener("click", loadAccessRequests);
+toggleRoleManagement?.addEventListener("click", async () => {
+  const isOpening = roleManagement.hidden;
+  roleManagement.hidden = !isOpening;
+  toggleRoleManagement.setAttribute("aria-expanded", String(isOpening));
+  toggleRoleManagement.textContent = isOpening ? "Ocultar roles" : "Roles";
+  if (isOpening) await loadRoleUsers();
+});
+refreshRoleUsers?.addEventListener("click", loadRoleUsers);
 closeAccessCode?.addEventListener("click", () => accessCodeDialog.close());
 accessCodeDialog?.addEventListener("close", () => {
   accessCodeValue.value = "";
   accessCodeEmail.textContent = "";
-  accessCodeDescription.textContent = "Entrega este código personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.";
+  accessCodeDescription.textContent = "Entrega este código de 4 dígitos personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.";
 });
 copyAccessCode?.addEventListener("click", async () => {
   try {

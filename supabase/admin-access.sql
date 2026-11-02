@@ -20,6 +20,28 @@ select
 from auth.users as users
 on conflict (id) do nothing;
 
+create table if not exists public.admin_role_settings (
+  singleton boolean primary key default true check (singleton),
+  primary_superadmin_id uuid references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+
+insert into public.admin_role_settings (singleton)
+values (true)
+on conflict (singleton) do nothing;
+
+update public.admin_role_settings
+set primary_superadmin_id = (
+  select profiles.id
+  from public.profiles
+  where profiles.role = 'superadmin'
+  order by profiles.created_at, profiles.id
+  limit 1
+)
+where singleton = true
+  and primary_superadmin_id is null
+  and exists (select 1 from public.profiles where role = 'superadmin');
+
 create or replace function public.access_admin_role()
 returns text
 language sql
@@ -34,6 +56,116 @@ $$;
 
 revoke all on function public.access_admin_role() from public, anon;
 grant execute on function public.access_admin_role() to authenticated;
+
+create or replace function public.list_admin_role_users()
+returns table (
+  user_id uuid,
+  email text,
+  full_name text,
+  role text,
+  is_primary_superadmin boolean,
+  can_manage_superadmin_role boolean
+)
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  caller_role text;
+  primary_id uuid;
+begin
+  caller_role := public.access_admin_role();
+  if coalesce(caller_role, '') not in ('admin', 'superadmin') then
+    raise exception 'Only admins can view account roles'
+      using errcode = '42501';
+  end if;
+
+  select primary_superadmin_id
+    into primary_id
+    from public.admin_role_settings
+    where singleton = true;
+
+  return query
+    select
+      profiles.id,
+      users.email::text,
+      coalesce(profiles.full_name, ''),
+      profiles.role::text,
+      profiles.id = primary_id,
+      auth.uid() = primary_id
+    from public.profiles as profiles
+    join auth.users as users on users.id = profiles.id
+    order by profiles.full_name, users.email;
+end;
+$$;
+
+create or replace function public.set_admin_user_role(p_user_id uuid, p_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  caller_role text;
+  primary_id uuid;
+  target_role text;
+begin
+  caller_role := public.access_admin_role();
+  if coalesce(caller_role, '') not in ('admin', 'superadmin') then
+    raise exception 'Only admins can change account roles'
+      using errcode = '42501';
+  end if;
+
+  if p_role not in ('support', 'editor', 'admin', 'superadmin') then
+    raise exception 'Invalid account role'
+      using errcode = '22023';
+  end if;
+
+  select primary_superadmin_id
+    into primary_id
+    from public.admin_role_settings
+    where singleton = true;
+
+  select profiles.role
+    into target_role
+    from public.profiles as profiles
+    where profiles.id = p_user_id
+    for update;
+
+  if not found then
+    raise exception 'Account profile not found'
+      using errcode = 'P0002';
+  end if;
+
+  if p_user_id = auth.uid() then
+    raise exception 'You cannot change your own role'
+      using errcode = '42501';
+  end if;
+
+  if p_user_id = primary_id and p_role <> 'superadmin' then
+    raise exception 'The primary superadmin role cannot be removed'
+      using errcode = '42501';
+  end if;
+
+  if (p_role = 'superadmin' or target_role = 'superadmin')
+    and (primary_id is null or auth.uid() <> primary_id) then
+    raise exception 'Only the primary superadmin can assign or remove superadmin'
+      using errcode = '42501';
+  end if;
+
+  update public.profiles
+    set role = p_role,
+        updated_at = now()
+    where id = p_user_id;
+
+  return true;
+end;
+$$;
+
+revoke all on function public.list_admin_role_users() from public, anon;
+revoke all on function public.set_admin_user_role(uuid, text) from public, anon;
+grant execute on function public.list_admin_role_users() to authenticated;
+grant execute on function public.set_admin_user_role(uuid, text) to authenticated;
 
 create table if not exists public.admin_access_requests (
   id uuid primary key default gen_random_uuid(),
@@ -59,15 +191,42 @@ create table if not exists public.admin_activation_codes (
   request_id uuid not null references public.admin_access_requests(id) on delete cascade,
   full_name text not null,
   email text not null,
-  code_hash text not null unique,
+  code_hash text not null,
   expires_at timestamptz not null default (now() + interval '24 hours'),
   used_at timestamptz,
   created_by uuid not null references auth.users(id),
   created_at timestamptz not null default now()
 );
 
+alter table public.admin_activation_codes
+  drop constraint if exists admin_activation_codes_code_hash_key;
+
+create index if not exists admin_activation_codes_email_code_hash
+  on public.admin_activation_codes (email, code_hash)
+  where used_at is null;
+
+create table if not exists public.admin_activation_attempts (
+  email text primary key,
+  attempts integer not null default 0 check (attempts between 0 and 5),
+  window_started_at timestamptz not null default now(),
+  locked_until timestamptz
+);
+
+create table if not exists public.admin_activation_tickets (
+  id uuid primary key default gen_random_uuid(),
+  request_id uuid not null references public.admin_access_requests(id) on delete cascade,
+  email text not null,
+  full_name text not null,
+  ticket_hash text not null unique,
+  expires_at timestamptz not null default (now() + interval '10 minutes'),
+  used_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
 alter table public.admin_access_requests enable row level security;
 alter table public.admin_activation_codes enable row level security;
+alter table public.admin_activation_attempts enable row level security;
+alter table public.admin_activation_tickets enable row level security;
 
 revoke all on public.admin_access_requests from anon, authenticated;
 grant insert, select on public.admin_access_requests to anon, authenticated;
@@ -92,6 +251,8 @@ for select to authenticated
 using (public.access_admin_role() in ('admin', 'superadmin'));
 
 revoke all on public.admin_activation_codes from anon, authenticated;
+revoke all on public.admin_activation_attempts from anon, authenticated;
+revoke all on public.admin_activation_tickets from anon, authenticated;
 
 create or replace function public.hash_admin_activation_code(p_code text)
 returns text
@@ -143,7 +304,7 @@ begin
       using errcode = '42501';
   end if;
 
-  if p_code is null or p_code !~ '^[0-9a-f]{32}$' then
+  if p_code is null or p_code !~ '^[0-9]{4}$' then
     raise exception 'Invalid activation code format'
       using errcode = '22023';
   end if;
@@ -164,6 +325,10 @@ begin
     where email = access_request.email
       and used_at is null;
 
+  delete from public.admin_activation_tickets
+    where email = access_request.email
+      and used_at is null;
+
   insert into public.admin_activation_codes (
     request_id, full_name, email, code_hash, created_by
   )
@@ -175,11 +340,134 @@ begin
     auth.uid()
   );
 
+  insert into public.admin_activation_attempts (
+    email, attempts, window_started_at, locked_until
+  )
+  values (
+    access_request.email, 0, now(), null
+  )
+  on conflict (email) do update
+    set attempts = 0,
+        window_started_at = now(),
+        locked_until = null;
+
   update public.admin_access_requests
     set status = 'approved',
         reviewed_at = now(),
         reviewed_by = auth.uid()
     where id = access_request.id;
+
+  return true;
+end;
+$$;
+
+create or replace function public.prepare_admin_account_activation(
+  p_email text,
+  p_code text,
+  p_ticket text
+)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  normalized_email text;
+  attempt_row public.admin_activation_attempts%rowtype;
+  activation public.admin_activation_codes%rowtype;
+begin
+  normalized_email := lower(trim(coalesce(p_email, '')));
+  if length(normalized_email) < 5
+    or length(normalized_email) > 160
+    or position('@' in normalized_email) < 2 then
+    return false;
+  end if;
+
+  if not exists (
+    select 1
+    from public.admin_activation_codes
+    where email = normalized_email
+      and used_at is null
+      and expires_at > now()
+  ) then
+    return false;
+  end if;
+
+  insert into public.admin_activation_attempts (email)
+  values (normalized_email)
+  on conflict (email) do nothing;
+
+  select *
+    into attempt_row
+    from public.admin_activation_attempts
+    where email = normalized_email
+    for update;
+
+  if attempt_row.locked_until > now() then
+    return false;
+  end if;
+
+  if attempt_row.window_started_at <= now() - interval '24 hours' then
+    update public.admin_activation_attempts
+      set attempts = 0,
+          window_started_at = now(),
+          locked_until = null
+      where email = normalized_email
+    returning * into attempt_row;
+  end if;
+
+  if attempt_row.attempts >= 5 then
+    return false;
+  end if;
+
+  if p_code is null or p_code !~ '^[0-9]{4}$' then
+    update public.admin_activation_attempts
+      set attempts = attempts + 1,
+          locked_until = case when attempts + 1 >= 5
+            then now() + interval '24 hours'
+            else null
+          end
+      where email = normalized_email;
+    return false;
+  end if;
+
+  if p_ticket is null or p_ticket !~ '^[a-fA-F0-9]{64}$' then
+    return false;
+  end if;
+
+  select *
+    into activation
+    from public.admin_activation_codes
+    where email = normalized_email
+      and code_hash = public.hash_admin_activation_code(p_code)
+      and used_at is null
+      and expires_at > now()
+    for update;
+
+  if not found then
+    update public.admin_activation_attempts
+      set attempts = attempts + 1,
+          locked_until = case when attempts + 1 >= 5
+            then now() + interval '24 hours'
+            else null
+          end
+      where email = normalized_email;
+    return false;
+  end if;
+
+  delete from public.admin_activation_tickets
+    where email = normalized_email
+      and used_at is null;
+
+  insert into public.admin_activation_tickets (
+    request_id, email, full_name, ticket_hash
+  )
+  values (
+    activation.request_id,
+    activation.email,
+    activation.full_name,
+    public.hash_admin_activation_code(lower(p_ticket))
+  );
 
   return true;
 end;
@@ -214,9 +502,11 @@ end;
 $$;
 
 revoke all on function public.issue_admin_activation_code(uuid, text) from public;
+revoke all on function public.prepare_admin_account_activation(text, text, text) from public;
 revoke all on function public.reject_admin_access_request(uuid) from public;
 revoke all on function public.hash_admin_activation_code(text) from public, anon, authenticated;
 grant execute on function public.issue_admin_activation_code(uuid, text) to authenticated;
+grant execute on function public.prepare_admin_account_activation(text, text, text) to anon, authenticated;
 grant execute on function public.reject_admin_access_request(uuid) to authenticated;
 
 create or replace function public.consume_admin_activation_code()
@@ -226,12 +516,15 @@ security definer
 set search_path = ''
 as $$
 declare
-  activation_code text;
+  activation_ticket text;
   approved_name text;
+  approved_email text;
+  activation_request_id uuid;
+  ticket_id uuid;
   activation_id uuid;
 begin
-  activation_code := lower(trim(new.raw_user_meta_data ->> 'activation_code'));
-  if activation_code is null or activation_code = '' then
+  activation_ticket := lower(trim(new.raw_user_meta_data ->> 'activation_ticket'));
+  if activation_ticket is null or activation_ticket = '' then
     raise exception 'ACCESS_REQUEST_REQUIRED'
       using errcode = 'P0001';
   end if;
@@ -241,11 +534,25 @@ begin
       using errcode = 'P0001';
   end if;
 
-  select id, full_name
-    into activation_id, approved_name
-    from public.admin_activation_codes
+  select id, request_id, email, full_name
+    into ticket_id, activation_request_id, approved_email, approved_name
+    from public.admin_activation_tickets
     where email = lower(trim(new.email))
-      and code_hash = public.hash_admin_activation_code(activation_code)
+      and ticket_hash = public.hash_admin_activation_code(activation_ticket)
+      and used_at is null
+      and expires_at > now()
+    for update;
+
+  if not found then
+    raise exception 'INVALID_ACTIVATION_CODE'
+      using errcode = 'P0001';
+  end if;
+
+  select id
+    into activation_id
+    from public.admin_activation_codes
+    where request_id = activation_request_id
+      and email = approved_email
       and used_at is null
       and expires_at > now()
     for update;
@@ -259,9 +566,13 @@ begin
     set used_at = now()
     where id = activation_id;
 
+  update public.admin_activation_tickets
+    set used_at = now()
+    where id = ticket_id;
+
   new.raw_user_meta_data :=
     jsonb_set(
-      coalesce(new.raw_user_meta_data, '{}'::jsonb) - 'activation_code',
+      coalesce(new.raw_user_meta_data, '{}'::jsonb) - 'activation_ticket',
       '{full_name}',
       to_jsonb(approved_name),
       true

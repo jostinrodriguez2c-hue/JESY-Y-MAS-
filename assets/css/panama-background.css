@@ -1238,6 +1238,26 @@ body.admin-body .request-details-icon {
   margin-left: 6px;
 }
 
+.dashboard-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.role-management-table {
+  min-width: 620px;
+}
+
+.role-select {
+  min-width: 130px;
+  padding: 8px 10px;
+}
+
+.role-management-actions {
+  min-width: 110px;
+}
+
 .access-code-value {
   font-family: monospace !important;
   font-size: 18px !important;

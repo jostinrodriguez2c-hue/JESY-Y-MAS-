@@ -43,9 +43,9 @@
       <summary>¿Tienes un código? Activar acceso</summary>
       <form id="activation-form" class="activation-form">
         <label>Correo aprobado<input type="email" name="email" required maxlength="160" autocomplete="email"></label>
-        <label>Código temporal<input type="text" name="activation_code" required minlength="32" maxlength="32" pattern="[a-fA-F0-9]{32}" autocomplete="one-time-code" spellcheck="false"></label>
+        <label>Código temporal<input type="text" name="activation_code" required minlength="4" maxlength="4" pattern="[0-9]{4}" inputmode="numeric" autocomplete="one-time-code" spellcheck="false"></label>
         <label>Crea tu contraseña<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
-        <p class="login-description">El código lo entrega personalmente un superadministrador. Vence en 24 horas y solo se puede usar una vez. Tu contraseña debe tener al menos 6 caracteres y cumplir la política de seguridad de Supabase.</p>
+        <p class="login-description">El código de 4 dígitos lo entrega personalmente un superadministrador. Vence en 24 horas y solo se puede usar una vez. Se permiten 5 intentos por correo cada 24 horas. Tu contraseña debe tener al menos 6 caracteres y cumplir la política de seguridad de Supabase.</p>
         <button class="btn btn-orange" type="submit">Activar acceso</button>
         <p id="activation-status" class="form-status" role="status" aria-live="polite"></p>
       </form>

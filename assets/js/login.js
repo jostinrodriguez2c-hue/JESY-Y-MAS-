@@ -73,22 +73,40 @@ activationForm?.addEventListener("submit", async (event) => {
 
   const data = new FormData(activationForm);
   const email = String(data.get("email")).trim().toLowerCase();
-  const code = String(data.get("activation_code")).trim().toLowerCase();
+  const code = String(data.get("activation_code")).trim();
   const password = String(data.get("password"));
   setFormBusy(activationForm, true, "Activando...");
   activationStatus.textContent = "";
   activationStatus.classList.remove("error");
 
+  const ticketBytes = crypto.getRandomValues(new Uint8Array(32));
+  const ticket = Array.from(ticketBytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const { data: prepared, error: prepareError } = await supabase.rpc("prepare_admin_account_activation", {
+    p_email: email,
+    p_code: code,
+    p_ticket: ticket
+  });
+
+  if (prepareError || !prepared) {
+    if (prepareError) console.error("No se pudo validar el código de activación:", prepareError);
+    setFormBusy(activationForm, false, "Activar acceso");
+    activationStatus.textContent = prepareError
+      ? "No se pudo validar el código. Verifica que esté aplicada la configuración SQL de acceso e inténtalo de nuevo."
+      : "El correo o código no es válido, venció, ya se usó o se alcanzó el límite de intentos.";
+    activationStatus.classList.add("error");
+    return;
+  }
+
   const { data: result, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { activation_code: code } }
+    options: { data: { activation_ticket: ticket } }
   });
   setFormBusy(activationForm, false, "Activar acceso");
 
   if (error) {
     console.error("No se pudo activar la cuenta:", error);
-    const invalidCode = error.message.toLowerCase().includes("activation_code")
+    const invalidCode = error.message.toLowerCase().includes("invalid_activation_code")
       || error.message.toLowerCase().includes("activation code");
     const approvalRequired = error.message.toLowerCase().includes("access_request_required")
       || error.message.toLowerCase().includes("access request required");

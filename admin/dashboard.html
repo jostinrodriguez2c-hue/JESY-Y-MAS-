@@ -15,7 +15,10 @@
     <p class="eyebrow">RESUMEN GENERAL</p>
     <h1>Panel administrativo</h1>
     <p id="admin-welcome" class="muted">Verificando acceso...</p>
-    <button id="toggle-access-requests" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="access-requests-management" hidden>Ver solicitudes de acceso</button>
+    <div class="dashboard-admin-actions">
+      <button id="toggle-access-requests" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="access-requests-management" hidden>Ver solicitudes de acceso</button>
+      <button id="toggle-role-management" class="btn btn-dark" type="button" aria-expanded="false" aria-controls="role-management" hidden>Roles</button>
+    </div>
     <div class="dashboard-grid">
       <article class="stat-card"><span>Solicitudes recibidas</span><strong id="quote-count">—</strong></article>
       <article class="stat-card"><span>Proyectos publicados</span><strong id="project-count">—</strong></article>
@@ -70,6 +73,20 @@
         </table>
       </div>
     </section>
+    <section id="role-management" class="requests-section" aria-labelledby="role-management-heading" hidden>
+      <div class="requests-heading">
+        <div><p class="eyebrow">PERSONAL</p><h2 id="role-management-heading">Administrar roles</h2></div>
+        <button id="refresh-role-users" class="btn btn-dark" type="button">Actualizar</button>
+      </div>
+      <p class="muted">Admin y superadmin pueden asignar roles de soporte, editor y admin. Solo el superadmin principal puede asignar o quitar el rol superadmin.</p>
+      <p id="role-management-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table role-management-table">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Acciones</th></tr></thead>
+          <tbody id="role-users-table"><tr><td colspan="4">Abre esta sección para cargar las cuentas.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
     <section class="requests-section" aria-labelledby="requests-heading">
       <div class="requests-heading">
         <div><p class="eyebrow">COTIZACIONES</p><h2 id="requests-heading">Solicitudes recibidas</h2></div>
@@ -114,7 +131,7 @@
       <div class="decision-dialog-icon" aria-hidden="true">✓</div>
       <p class="eyebrow">APROBACIÓN DE ACCESO</p>
       <h2 id="access-code-title">Código temporal generado</h2>
-      <p id="access-code-description" class="decision-dialog-copy">Entrega este código personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.</p>
+      <p id="access-code-description" class="decision-dialog-copy">Entrega este código de 4 dígitos personalmente al trabajador. Solo se muestra una vez y vence en 24 horas.</p>
       <label class="decision-passcode-label" for="access-code-value">Código de activación</label>
       <input id="access-code-value" class="access-code-value" type="text" readonly>
       <p id="access-code-email" class="decision-dialog-copy"></p>
