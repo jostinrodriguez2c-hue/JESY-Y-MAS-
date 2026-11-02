@@ -89,6 +89,7 @@
       <div class="requests-heading">
         <div><p class="eyebrow">PERSONAL</p><h2 id="access-requests-heading">Solicitudes de acceso</h2></div>
         <div class="admin-management-controls">
+          <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
           <button id="refresh-access-requests" class="btn btn-dark" type="button">Actualizar</button>
           <button id="close-access-requests" class="btn btn-dark" type="button">Cerrar</button>
         </div>
@@ -104,15 +105,19 @@
     </section>
   </dialog>
   <dialog id="role-management" class="decision-dialog admin-management-dialog" aria-labelledby="role-management-heading">
-    <section class="decision-dialog-card admin-management-card">
+    <section class="decision-dialog-card admin-management-card role-management-card">
       <div class="requests-heading">
-        <div><p class="eyebrow">PERSONAL</p><h2 id="role-management-heading">Administrar roles</h2></div>
+        <div class="role-management-title">
+          <span class="role-management-mark" aria-hidden="true">R</span>
+          <div><p class="eyebrow">CENTRO DE PERSONAL</p><h2 id="role-management-heading">Administrar roles</h2><p class="role-management-subtitle">Cuentas, permisos y acceso</p></div>
+        </div>
         <div class="admin-management-controls">
-          <button id="refresh-role-users" class="btn btn-dark" type="button">Actualizar</button>
+          <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
+          <button id="refresh-role-users" class="btn btn-dark" type="button"><span aria-hidden="true">↻</span> Actualizar</button>
           <button id="close-role-management" class="btn btn-dark" type="button">Cerrar</button>
         </div>
       </div>
-      <p class="muted">Asigna varios roles a cada cuenta. Los administradores pueden agregar o quitar roles; crear o editar definiciones y permisos sigue reservado al superadmin principal.</p>
+      <p class="role-management-intro">Administra las cuentas y sus accesos desde un solo lugar. La creación y edición de permisos está reservada al superadmin principal.</p>
       <p id="role-management-status" class="form-status" role="status" aria-live="polite"></p>
       <nav class="role-management-nav" aria-label="Administrar roles">
         <button class="btn btn-dark is-selected" type="button" data-role-panel-button="add">Agregar roles</button>
@@ -180,6 +185,7 @@
       <div class="requests-heading">
         <div><p class="eyebrow">AUDITORÍA</p><h2 id="activity-history-heading">Historial de actividad</h2></div>
         <div class="admin-management-controls">
+          <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
           <button id="refresh-activity-history" class="btn btn-dark" type="button">Actualizar</button>
           <button id="close-activity-history" class="btn btn-dark" type="button">Cerrar</button>
         </div>
@@ -251,6 +257,7 @@
       <h2 id="request-details-title">Solicitud</h2>
       <div id="request-details-content" class="request-details-content"></div>
       <div class="decision-dialog-actions">
+        <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
         <button id="request-details-close" class="decision-cancel-button" type="button">Cerrar</button>
       </div>
     </section>
@@ -298,6 +305,6 @@
       </div>
     </form>
   </dialog>
-  <script type="module" src="../assets/js/dashboard.js?v=20261102-all-account-statuses"></script>
+  <script type="module" src="../assets/js/dashboard.js?v=20261102-return-to-site"></script>
 </body>
 </html>

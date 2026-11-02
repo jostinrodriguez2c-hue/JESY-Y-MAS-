@@ -449,7 +449,14 @@ function renderAdminRoleUsers() {
     const row = document.createElement("tr");
     appendCell(row, user.full_name || "—");
     appendCell(row, user.email || "—");
-    appendCell(row, user.account_status || "Estado desconocido");
+    const statusCell = document.createElement("td");
+    const statusBadge = document.createElement("span");
+    statusBadge.className = `role-account-status ${
+      user.is_activated ? "is-active" : user.user_id ? "is-unconfirmed" : "is-pending"
+    }`;
+    statusBadge.textContent = user.account_status || "Estado desconocido";
+    statusCell.append(statusBadge);
+    row.append(statusCell);
 
     const roleCell = document.createElement("td");
     const select = document.createElement("select");

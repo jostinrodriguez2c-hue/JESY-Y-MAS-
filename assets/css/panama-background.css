@@ -375,15 +375,107 @@ body.admin-body .admin-management-dialog {
   max-height: min(90vh, 900px);
 }
 
+body.admin-body #role-management {
+  width: min(1120px, calc(100% - 32px));
+}
+
 body.admin-body .admin-management-card {
   max-height: min(90vh, 900px);
   overflow: auto;
 }
 
+body.admin-body .role-management-card {
+  padding: clamp(20px, 3vw, 36px);
+  background:
+    radial-gradient(ellipse at 92% 0, rgba(229, 138, 50, .12), transparent 34%),
+    linear-gradient(145deg, #172536, #111b29);
+}
+
+body.admin-body .role-management-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+body.admin-body .role-management-title h2 {
+  margin-bottom: 5px;
+}
+
+body.admin-body .role-management-subtitle {
+  margin: 0;
+  color: #a9b8c8;
+  font-size: 12px;
+}
+
+body.admin-body .role-management-mark {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 15px;
+  background: linear-gradient(145deg, #f3a448, #d87320);
+  box-shadow: 0 8px 22px rgba(229, 138, 50, .22);
+  color: #fff;
+  font: 800 20px/1 Montserrat, Inter, sans-serif;
+}
+
+body.admin-body .role-management-intro {
+  margin: 22px 0 12px;
+  color: #c1ccda;
+  font-size: 13px;
+}
+
+body.admin-body .role-management-card .form-status {
+  color: #c1ccda;
+}
+
+body.admin-body .role-management-card .form-status.error {
+  color: #ffaaa1;
+}
+
 body.admin-body .admin-management-controls {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
+}
+
+body.admin-body .admin-management-controls .return-site-link,
+body.admin-body .request-details-card .return-site-link {
+  display: inline-flex;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 13px;
+  border: 1px solid rgba(240, 160, 75, .58);
+  border-radius: 9px;
+  background: linear-gradient(135deg, rgba(229, 138, 50, .2), rgba(229, 138, 50, .08));
+  color: #ffd19a;
+  font-size: 11px;
+  font-weight: 750;
+  text-align: center;
+  text-decoration: none;
+  transition: background .16s ease, border-color .16s ease, transform .16s ease;
+}
+
+body.admin-body .admin-management-controls .return-site-link:hover,
+body.admin-body .request-details-card .return-site-link:hover {
+  transform: translateY(-1px);
+  border-color: #f0a04b;
+  background: linear-gradient(135deg, rgba(229, 138, 50, .34), rgba(229, 138, 50, .16));
+}
+
+body.admin-body .request-details-card .return-site-link {
+  border-color: #d7dfe7;
+  background: #263547;
+  color: #d7e0ea;
+}
+
+body.admin-body .request-details-card .return-site-link:hover {
+  border-color: #e58a32;
+  background: #30455d;
 }
 
 body.admin-body .admin-management-card .requests-heading {
@@ -1299,6 +1391,94 @@ body.admin-body .dashboard-admin-actions .btn {
   min-width: 880px;
 }
 
+body.admin-body .role-management-panel {
+  border-color: #dce4ec;
+  background: linear-gradient(145deg, #fff, #f4f7fa);
+  box-shadow: 0 12px 30px rgba(2, 10, 20, .16);
+  color: #23384e;
+}
+
+body.admin-body .role-management-panel h3 {
+  color: #14283f;
+}
+
+body.admin-body .role-management-panel .muted {
+  color: #53677d;
+}
+
+body.admin-body .role-management-panel .role-management-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+body.admin-body .role-management-panel .role-management-table tbody tr {
+  transition: background-color .16s ease;
+}
+
+body.admin-body .role-management-panel .role-management-table tbody tr:hover {
+  background: #edf3f8;
+}
+
+body.admin-body .role-management-panel .role-management-table td {
+  color: #263c52;
+}
+
+body.admin-body .role-management-panel .role-select {
+  border: 1px solid #d2dce6;
+  border-radius: 9px;
+  background-color: #fff;
+  color: #1b3046;
+}
+
+body.admin-body .role-management-nav .btn {
+  border: 1px solid #43566b;
+  background: #223247;
+  color: #dce5ef;
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+body.admin-body .role-management-nav .btn:hover:not(:disabled) {
+  border-color: #f0a04b;
+  background: #2a3d53;
+  transform: translateY(-1px);
+}
+
+body.admin-body .role-management-nav .btn.is-selected {
+  border-color: #f0a04b;
+  background: linear-gradient(135deg, #f3a448, #dc7a27);
+  color: #182535;
+}
+
+body.admin-body .role-management-nav .btn:disabled {
+  cursor: not-allowed;
+  opacity: .48;
+}
+
+body.admin-body .role-account-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 9px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+body.admin-body .role-account-status.is-active {
+  border-color: #b8e3cc;
+  background: #e7f7ee;
+  color: #17613a;
+}
+
+body.admin-body .role-account-status.is-unconfirmed,
+body.admin-body .role-account-status.is-pending {
+  border-color: #f1d29d;
+  background: #fff5df;
+  color: #875914;
+}
+
 .role-select {
   min-width: 130px;
   padding: 8px 10px;
@@ -1503,8 +1683,31 @@ body.admin-body .dashboard-admin-actions .btn {
     padding: 22px;
   }
 
+  body.admin-body .role-management-card {
+    padding: 20px;
+  }
+
+  body.admin-body .role-management-title {
+    align-items: flex-start;
+  }
+
+  body.admin-body .role-management-mark {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+    border-radius: 13px;
+  }
+
   body.admin-body .admin-management-card .requests-heading {
     flex-direction: column;
+  }
+
+  body.admin-body .admin-management-controls {
+    width: 100%;
+  }
+
+  body.admin-body .admin-management-controls .return-site-link {
+    flex: 1 1 100%;
   }
 
   body.admin-body .admin-management-dialog {
