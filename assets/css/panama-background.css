@@ -1063,6 +1063,27 @@ main.section::before {
   color: var(--muted);
 }
 
+.narrow p:not(.eyebrow),
+.narrow p:not(.eyebrow) a {
+  color: var(--muted);
+}
+
+.contact-list strong {
+  color: var(--ink);
+}
+
+.catalog-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.catalog-header-actions .btn {
+  min-height: 42px;
+}
+
 .service-icon {
   background: rgba(229, 138, 50, .16);
 }
@@ -1650,6 +1671,23 @@ body.admin-body .role-account-status.is-pending {
 }
 
 @media (max-width: 700px) {
+  .catalog-page-nav {
+    flex-wrap: wrap;
+    padding-block: 12px;
+  }
+
+  .catalog-header-actions {
+    flex: 1 1 100%;
+    gap: 7px;
+    justify-content: flex-start;
+  }
+
+  .catalog-header-actions .btn {
+    min-height: 38px;
+    padding: 10px 12px;
+    font-size: 11px;
+  }
+
   .login-panels,
   .login-inline-fields {
     grid-template-columns: 1fr;
