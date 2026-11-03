@@ -7,6 +7,26 @@ const accessRequestForm = document.querySelector("#access-request-form");
 const accessRequestStatus = document.querySelector("#access-request-status");
 const activationForm = document.querySelector("#activation-form");
 const activationStatus = document.querySelector("#activation-status");
+const loginPanels = document.querySelector(".login-panels");
+const activationCard = document.querySelector(".activation-card");
+const passwordRecoveryForm = document.querySelector("#password-recovery-form");
+const passwordRecoveryStatus = document.querySelector("#password-recovery-status");
+
+function showPasswordRecovery() {
+  loginPanels.hidden = true;
+  activationCard.hidden = true;
+  passwordRecoveryForm.hidden = false;
+}
+
+if (supabase) {
+  supabase.auth.onAuthStateChange((event) => {
+    if (event === "PASSWORD_RECOVERY") showPasswordRecovery();
+  });
+}
+
+if (new URLSearchParams(window.location.search).get("recovery") === "1") {
+  showPasswordRecovery();
+}
 
 function setFormBusy(target, busy, label) {
   const button = target.querySelector('button[type="submit"]');
@@ -42,6 +62,48 @@ form?.addEventListener("submit", async (event) => {
     return;
   }
   window.location.href = "dashboard.html";
+});
+
+passwordRecoveryForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!isSupabaseConfigured || !supabase) {
+    passwordRecoveryStatus.textContent = "Configura primero las credenciales de Supabase.";
+    passwordRecoveryStatus.classList.add("error");
+    return;
+  }
+
+  const data = new FormData(passwordRecoveryForm);
+  const password = String(data.get("password"));
+  if (password !== String(data.get("password_confirmation"))) {
+    passwordRecoveryStatus.textContent = "Las contraseñas no coinciden.";
+    passwordRecoveryStatus.classList.add("error");
+    return;
+  }
+
+  setFormBusy(passwordRecoveryForm, true, "Guardando...");
+  passwordRecoveryStatus.textContent = "";
+  passwordRecoveryStatus.classList.remove("error");
+  const { error } = await supabase.auth.updateUser({ password });
+  setFormBusy(passwordRecoveryForm, false, "Guardar contraseña");
+  if (error) {
+    console.error("No se pudo actualizar la contraseña:", error);
+    passwordRecoveryStatus.textContent = `No se pudo actualizar la contraseña (${error.code || "error"}): ${error.message}`;
+    passwordRecoveryStatus.classList.add("error");
+    return;
+  }
+
+  const { error: signOutError } = await supabase.auth.signOut();
+  if (signOutError) {
+    console.error("La contraseña se actualizó, pero no se pudo cerrar la sesión:", signOutError);
+    passwordRecoveryStatus.textContent = "La contraseña se actualizó, pero no se pudo cerrar la sesión. Cierra esta ventana y vuelve a iniciar sesión.";
+    passwordRecoveryStatus.classList.add("error");
+    return;
+  }
+  passwordRecoveryForm.reset();
+  passwordRecoveryForm.hidden = true;
+  loginPanels.hidden = false;
+  activationCard.hidden = false;
+  status.textContent = "Contraseña actualizada. Ya puedes iniciar sesión.";
 });
 
 accessRequestForm?.addEventListener("submit", async (event) => {

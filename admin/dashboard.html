@@ -19,6 +19,7 @@
       <button id="toggle-access-requests" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="access-requests-management" hidden>Ver solicitudes de acceso</button>
       <button id="toggle-role-management" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="role-management" hidden>Roles</button>
       <button id="toggle-activity-history" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="activity-history-dialog" hidden>Historial</button>
+      <button id="toggle-active-personnel" class="btn btn-dark" type="button" aria-haspopup="dialog" aria-controls="active-personnel-dialog" hidden>Personal activo</button>
     </div>
     <div class="dashboard-grid">
       <article class="stat-card"><span>Solicitudes recibidas</span><strong id="quote-count">—</strong></article>
@@ -202,6 +203,60 @@
         <button id="previous-activity-page" class="btn btn-dark" type="button" disabled>Anterior</button>
         <span id="activity-history-page-status" class="muted" aria-live="polite"></span>
         <button id="next-activity-page" class="btn btn-dark" type="button" disabled>Siguiente</button>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="active-personnel-dialog" class="decision-dialog admin-management-dialog" aria-labelledby="active-personnel-heading">
+    <section class="decision-dialog-card admin-management-card">
+      <div class="requests-heading">
+        <div><p class="eyebrow">PERSONAL</p><h2 id="active-personnel-heading">Personal activo</h2></div>
+        <div class="admin-management-controls">
+          <a class="btn btn-dark return-site-link" href="../index.html">Volver al sitio web</a>
+          <button id="refresh-active-personnel" class="btn btn-dark" type="button">Actualizar</button>
+          <button id="close-active-personnel" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p class="muted">Administra las cuentas activas. Despedir desactiva el acceso sin borrar la cuenta ni su historial; podrás restaurarlo desde «Inactivos».</p>
+      <nav class="role-management-nav active-personnel-nav" aria-label="Filtrar personal">
+        <button id="show-active-personnel" class="btn btn-dark is-selected" type="button" aria-pressed="true">Activos</button>
+        <button id="show-inactive-personnel" class="btn btn-dark" type="button" aria-pressed="false">Inactivos</button>
+      </nav>
+      <p id="active-personnel-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table active-personnel-table">
+          <thead><tr><th>Nombre</th><th>Correo</th><th>Roles</th><th>Motivo de advertencia</th><th>Acciones</th></tr></thead>
+          <tbody id="active-personnel-table"><tr><td colspan="5">Abre esta ventana para cargar el personal.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="staff-action-history-dialog" class="decision-dialog admin-management-dialog" aria-labelledby="staff-action-history-heading">
+    <section class="decision-dialog-card admin-management-card">
+      <div class="requests-heading">
+        <div><p class="eyebrow">PERSONAL</p><h2 id="staff-action-history-heading">Historial de acciones</h2></div>
+        <div class="admin-management-controls">
+          <button id="close-staff-action-history" class="btn btn-dark" type="button">Cerrar</button>
+        </div>
+      </div>
+      <p id="staff-action-history-status" class="form-status" role="status" aria-live="polite"></p>
+      <div class="requests-table-wrap">
+        <table class="requests-table staff-action-history-table">
+          <thead><tr><th>Fecha</th><th>Acción</th><th>Realizada por</th><th>Motivo / resultado</th></tr></thead>
+          <tbody id="staff-action-history-table"><tr><td colspan="4">Selecciona una persona para cargar su historial.</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </dialog>
+  <dialog id="staff-dismiss-dialog" class="decision-dialog" aria-labelledby="staff-dismiss-heading">
+    <section class="decision-dialog-card">
+      <div class="decision-dialog-icon hide-request-dialog-icon" aria-hidden="true">!</div>
+      <p class="eyebrow">CONFIRMACIÓN DE ACCESO</p>
+      <h2 id="staff-dismiss-heading">Desactivar acceso</h2>
+      <p id="staff-dismiss-description" class="decision-dialog-copy"></p>
+      <p id="staff-dismiss-status" class="decision-dialog-error" role="alert" aria-live="polite"></p>
+      <div class="decision-dialog-actions">
+        <button id="staff-dismiss-cancel" class="decision-cancel-button" type="button">Cancelar</button>
+        <button id="staff-dismiss-confirm" class="decision-confirm-button hide-request-confirm-button" type="button">Desactivar acceso</button>
       </div>
     </section>
   </dialog>

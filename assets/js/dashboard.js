@@ -94,6 +94,23 @@ const closeActivityHistory = document.querySelector("#close-activity-history");
 const activityHistoryPageStatus = document.querySelector("#activity-history-page-status");
 const previousActivityPage = document.querySelector("#previous-activity-page");
 const nextActivityPage = document.querySelector("#next-activity-page");
+const activePersonnelDialog = document.querySelector("#active-personnel-dialog");
+const toggleActivePersonnel = document.querySelector("#toggle-active-personnel");
+const activePersonnelTable = document.querySelector("#active-personnel-table");
+const activePersonnelStatus = document.querySelector("#active-personnel-status");
+const refreshActivePersonnel = document.querySelector("#refresh-active-personnel");
+const closeActivePersonnel = document.querySelector("#close-active-personnel");
+const showActivePersonnel = document.querySelector("#show-active-personnel");
+const showInactivePersonnel = document.querySelector("#show-inactive-personnel");
+const staffActionHistoryDialog = document.querySelector("#staff-action-history-dialog");
+const staffActionHistoryTable = document.querySelector("#staff-action-history-table");
+const staffActionHistoryStatus = document.querySelector("#staff-action-history-status");
+const closeStaffActionHistory = document.querySelector("#close-staff-action-history");
+const staffDismissDialog = document.querySelector("#staff-dismiss-dialog");
+const staffDismissDescription = document.querySelector("#staff-dismiss-description");
+const staffDismissStatus = document.querySelector("#staff-dismiss-status");
+const staffDismissConfirm = document.querySelector("#staff-dismiss-confirm");
+const staffDismissCancel = document.querySelector("#staff-dismiss-cancel");
 let pendingDecision = null;
 let editingContent = null;
 let deletingContent = null;
@@ -112,6 +129,8 @@ let adminPermissions = {};
 let adminRoles = [];
 let adminRoleUsers = [];
 let activityHistoryPage = 0;
+let activePersonnelFilter = "active";
+let pendingStaffDismissal = null;
 const activityHistoryPageSize = 50;
 const permissionGroups = [
   {
@@ -263,6 +282,7 @@ async function init() {
   toggleAccessRequests.hidden = !hasPermission("access_requests.view");
   toggleActivityHistory.hidden = !hasPermission("activity_history.view");
   toggleRoleManagement.hidden = !hasPermission("role_assignments.view");
+  toggleActivePersonnel.hidden = !hasPermission("role_assignments.view");
   document.querySelector(".requests-section").hidden = !canManageRequests;
   const canViewProjects = ["view", "create", "update", "delete"].some((action) => hasPermission(`projects.${action}`));
   const canViewServices = ["view", "create", "update", "delete"].some((action) => hasPermission(`services.${action}`));
@@ -495,9 +515,11 @@ function renderAdminRoleUsers() {
     remove.disabled = true;
     const isCurrentUser = user.user_id === currentUserId;
     const isPrimaryOwner = user.is_primary_superadmin;
+    const isAccountDisabled = user.account_status === "Deshabilitada";
     const assignedRoles = user.assigned_roles || [];
     const isExistingAccount = Boolean(user.user_id);
     select.disabled = !isExistingAccount
+      || isAccountDisabled
       || isCurrentUser
       || isPrimaryOwner
       || !hasPermission("role_assignments.manage");
@@ -506,6 +528,8 @@ function renderAdminRoleUsers() {
       ? "Esta solicitud aún no tiene una cuenta activada; podrás asignar roles después de que la persona cree su cuenta."
       : isCurrentUser
       ? "No puedes cambiar tus propios roles."
+      : isAccountDisabled
+        ? "Esta cuenta está deshabilitada. Restaura el acceso antes de cambiar sus roles."
       : isPrimaryOwner
         ? "Los roles del superadmin principal están protegidos."
         : !hasPermission("role_assignments.manage")
@@ -555,6 +579,246 @@ function renderAdminRoleUsers() {
     row.append(actions);
     roleUsersTable.append(row);
   });
+}
+
+async function loadActivePersonnel() {
+  activePersonnelStatus.textContent = "Cargando personal activo...";
+  activePersonnelStatus.classList.remove("error");
+  activePersonnelTable.replaceChildren(makeTableMessage("Cargando cuentas...", 5));
+  const [rolesResult, usersResult] = await Promise.all([
+    supabase.rpc("list_admin_roles"),
+    supabase.rpc("list_admin_role_users")
+  ]);
+  if (rolesResult.error || usersResult.error) {
+    const error = rolesResult.error || usersResult.error;
+    console.error("No se pudo cargar el personal activo:", error);
+    activePersonnelStatus.textContent = `No se pudo cargar el personal activo (${error.code || "error"}): ${error.message}`;
+    activePersonnelStatus.classList.add("error");
+    activePersonnelTable.replaceChildren(makeTableMessage("Error al cargar las cuentas.", 5));
+    return;
+  }
+
+  adminRoles = rolesResult.data || [];
+  const staffUsers = (usersResult.data || []).filter((user) => {
+    if (!user.user_id) return false;
+    return activePersonnelFilter === "active"
+      ? user.is_activated === true
+      : user.account_status === "Deshabilitada";
+  });
+  showActivePersonnel.classList.toggle("is-selected", activePersonnelFilter === "active");
+  showActivePersonnel.setAttribute("aria-pressed", String(activePersonnelFilter === "active"));
+  showInactivePersonnel.classList.toggle("is-selected", activePersonnelFilter === "inactive");
+  showInactivePersonnel.setAttribute("aria-pressed", String(activePersonnelFilter === "inactive"));
+  activePersonnelTable.replaceChildren();
+  if (!staffUsers.length) {
+    activePersonnelTable.append(makeTableMessage(
+      activePersonnelFilter === "active" ? "No hay cuentas activas." : "No hay cuentas deshabilitadas.",
+      5
+    ));
+    activePersonnelStatus.textContent = "";
+    return;
+  }
+
+  staffUsers.forEach((user) => {
+    const row = document.createElement("tr");
+    appendCell(row, user.full_name);
+    appendCell(row, user.email);
+    appendCell(row, (user.assigned_roles || [])
+      .map((key) => adminRoles.find((role) => role.role_key === key)?.display_name || key)
+      .join(", ") || "Sin roles");
+
+    const reasonCell = document.createElement("td");
+    const actions = document.createElement("td");
+    actions.className = "active-personnel-actions";
+    if (activePersonnelFilter === "active") {
+      const reasonInput = document.createElement("textarea");
+      reasonInput.className = "active-personnel-reason";
+      reasonInput.maxLength = 2000;
+      reasonInput.rows = 2;
+      reasonInput.placeholder = "Escribe el motivo";
+      reasonInput.setAttribute("aria-label", `Motivo de advertencia para ${user.full_name || user.email}`);
+      reasonCell.append(reasonInput);
+
+      const warnButton = document.createElement("button");
+      warnButton.type = "button";
+      warnButton.className = "btn btn-orange";
+      warnButton.textContent = "Advertencia";
+      warnButton.disabled = !canManageSuperadminRole;
+      warnButton.title = warnButton.disabled
+        ? "Solo el superadministrador principal puede emitir advertencias."
+        : "Guardar la advertencia y enviarla por correo si el proveedor está configurado.";
+      warnButton.addEventListener("click", async () => {
+        const reason = reasonInput.value.trim();
+        if (!reason) {
+          activePersonnelStatus.textContent = "Escribe el motivo de la advertencia.";
+          activePersonnelStatus.classList.add("error");
+          reasonInput.focus();
+          return;
+        }
+        warnButton.disabled = true;
+        activePersonnelStatus.classList.remove("error");
+        activePersonnelStatus.textContent = `Guardando la advertencia para ${user.email}...`;
+        const { data, error } = await supabase.functions.invoke("staff-actions", {
+          body: { action: "warning", targetUserId: user.user_id, reason }
+        });
+        warnButton.disabled = !canManageSuperadminRole;
+        if (error) {
+          console.error("No se pudo registrar la advertencia:", error);
+          activePersonnelStatus.textContent = `No se pudo registrar la advertencia: ${error.message}`;
+          activePersonnelStatus.classList.add("error");
+          return;
+        }
+        reasonInput.value = "";
+        activePersonnelStatus.textContent = data?.message || "La advertencia se registró.";
+        await loadStaffActionHistory(user);
+      });
+
+      const dismissButton = document.createElement("button");
+      dismissButton.type = "button";
+      dismissButton.className = "btn btn-dark management-toolbar-delete";
+      dismissButton.textContent = "Despedir";
+      dismissButton.disabled = !canManageSuperadminRole;
+      dismissButton.title = dismissButton.disabled
+        ? "Solo el superadministrador principal puede desactivar cuentas."
+        : "Desactivar el acceso sin borrar la cuenta ni su historial.";
+      dismissButton.addEventListener("click", () => {
+        pendingStaffDismissal = user;
+        staffDismissDescription.textContent =
+          `Se desactivará el acceso de ${user.full_name || user.email}. La cuenta, los roles y el historial se conservarán y podrás restaurar el acceso desde «Inactivos».`;
+        staffDismissStatus.textContent = "";
+        staffDismissDialog.showModal();
+      });
+
+      const resetButton = document.createElement("button");
+      resetButton.type = "button";
+      resetButton.className = "btn btn-dark";
+      resetButton.textContent = "Enviar enlace para cambiar contraseña";
+      resetButton.addEventListener("click", async () => {
+        resetButton.disabled = true;
+        activePersonnelStatus.classList.remove("error");
+        activePersonnelStatus.textContent = `Enviando enlace a ${user.email}...`;
+        const redirectTo = new URL("login.html?recovery=1", window.location.href).href;
+        const { error } = await supabase.auth.resetPasswordForEmail(user.email, { redirectTo });
+        resetButton.disabled = false;
+        if (error) {
+          console.error("No se pudo enviar el enlace de restablecimiento:", error);
+          activePersonnelStatus.textContent = `No se pudo enviar el enlace (${error.code || "error"}): ${error.message}`;
+          activePersonnelStatus.classList.add("error");
+          return;
+        }
+        activePersonnelStatus.textContent = `Se envió el enlace de restablecimiento a ${user.email}.`;
+      });
+
+      const historyButton = document.createElement("button");
+      historyButton.type = "button";
+      historyButton.className = "btn btn-dark";
+      historyButton.textContent = "Ver historial";
+      historyButton.addEventListener("click", () => loadStaffActionHistory(user));
+      actions.append(warnButton, dismissButton, resetButton, historyButton);
+    } else {
+      reasonCell.textContent = "—";
+      const restoreButton = document.createElement("button");
+      restoreButton.type = "button";
+      restoreButton.className = "btn btn-orange";
+      restoreButton.textContent = "Restaurar acceso";
+      restoreButton.disabled = !canManageSuperadminRole;
+      restoreButton.title = restoreButton.disabled
+        ? "Solo el superadministrador principal puede restaurar cuentas."
+        : "Permitir que esta persona vuelva a iniciar sesión.";
+      restoreButton.addEventListener("click", async () => {
+        restoreButton.disabled = true;
+        activePersonnelStatus.classList.remove("error");
+        activePersonnelStatus.textContent = `Restaurando el acceso de ${user.email}...`;
+        const { data, error } = await supabase.functions.invoke("staff-actions", {
+          body: { action: "restore", targetUserId: user.user_id }
+        });
+        restoreButton.disabled = !canManageSuperadminRole;
+        if (error) {
+          console.error("No se pudo restaurar el acceso:", error);
+          activePersonnelStatus.textContent = `No se pudo restaurar el acceso: ${error.message}`;
+          activePersonnelStatus.classList.add("error");
+          return;
+        }
+        activePersonnelStatus.textContent = data?.message || "Se restauró el acceso.";
+        await loadActivePersonnel();
+        activePersonnelStatus.textContent = data?.message || "Se restauró el acceso.";
+        await loadStaffActionHistory(user);
+      });
+      const historyButton = document.createElement("button");
+      historyButton.type = "button";
+      historyButton.className = "btn btn-dark";
+      historyButton.textContent = "Ver historial";
+      historyButton.addEventListener("click", () => loadStaffActionHistory(user));
+      actions.append(restoreButton, historyButton);
+    }
+
+    row.append(reasonCell, actions);
+    activePersonnelTable.append(row);
+  });
+  activePersonnelStatus.textContent = "";
+}
+
+async function loadStaffActionHistory(user) {
+  staffActionHistoryDialog.showModal();
+  staffActionHistoryStatus.textContent = `Cargando historial de ${user.full_name || user.email}...`;
+  staffActionHistoryStatus.classList.remove("error");
+  staffActionHistoryTable.replaceChildren(makeTableMessage("Cargando historial...", 4));
+  const { data, error } = await supabase.functions.invoke("staff-actions", {
+    body: { action: "history", targetUserId: user.user_id }
+  });
+  if (error) {
+    console.error("No se pudo cargar el historial del personal:", error);
+    staffActionHistoryStatus.textContent = `No se pudo cargar el historial: ${error.message}`;
+    staffActionHistoryStatus.classList.add("error");
+    staffActionHistoryTable.replaceChildren(makeTableMessage("Error al cargar el historial.", 4));
+    return;
+  }
+
+  const actions = data?.actions || [];
+  staffActionHistoryTable.replaceChildren();
+  if (!actions.length) {
+    staffActionHistoryTable.append(makeTableMessage("No hay acciones registradas para esta persona.", 4));
+  } else {
+    actions.forEach((action) => {
+      const row = document.createElement("tr");
+      appendCell(row, new Date(action.created_at).toLocaleString("es-PA"));
+      appendCell(row, {
+        warning: `Advertencia · ${action.email_status === "sent" ? "correo enviado" : action.email_status === "pending" ? "correo pendiente" : action.email_status === "failed" ? "correo no enviado" : "sin correo"} `,
+        dismissal: "Acceso desactivado",
+        restoration: "Acceso restaurado"
+      }[action.action_type] || action.action_type);
+      appendCell(row, action.actor_email);
+      const reasonCell = document.createElement("td");
+      reasonCell.textContent = action.reason || action.action_error || action.email_error || action.action_status;
+      row.append(reasonCell);
+      staffActionHistoryTable.append(row);
+    });
+  }
+  staffActionHistoryStatus.textContent = `Historial de ${user.full_name || user.email}.`;
+}
+
+async function confirmStaffDismissal() {
+  if (!pendingStaffDismissal) return;
+  staffDismissConfirm.disabled = true;
+  staffDismissStatus.textContent = "Desactivando el acceso...";
+  staffDismissStatus.classList.remove("error");
+  const { data, error } = await supabase.functions.invoke("staff-actions", {
+    body: { action: "dismiss", targetUserId: pendingStaffDismissal.user_id }
+  });
+  staffDismissConfirm.disabled = false;
+  if (error) {
+    console.error("No se pudo desactivar el acceso:", error);
+    staffDismissStatus.textContent = `No se pudo desactivar el acceso: ${error.message}`;
+    staffDismissStatus.classList.add("error");
+    return;
+  }
+  const dismissedUser = pendingStaffDismissal;
+  staffDismissDialog.close();
+  pendingStaffDismissal = null;
+  await loadActivePersonnel();
+  activePersonnelStatus.classList.remove("error");
+  activePersonnelStatus.textContent = data?.message || "Se desactivó el acceso.";
+  await loadStaffActionHistory(dismissedUser);
 }
 
 async function loadRoleManagement() {
@@ -1941,7 +2205,22 @@ toggleActivityHistory?.addEventListener("click", async () => {
   toggleActivityHistory.setAttribute("aria-expanded", "true");
   await loadActivityHistory();
 });
+toggleActivePersonnel?.addEventListener("click", async () => {
+  activePersonnelFilter = "active";
+  activePersonnelDialog.showModal();
+  toggleActivePersonnel.setAttribute("aria-expanded", "true");
+  await loadActivePersonnel();
+});
+showActivePersonnel?.addEventListener("click", async () => {
+  activePersonnelFilter = "active";
+  await loadActivePersonnel();
+});
+showInactivePersonnel?.addEventListener("click", async () => {
+  activePersonnelFilter = "inactive";
+  await loadActivePersonnel();
+});
 refreshActivityHistory?.addEventListener("click", loadActivityHistory);
+refreshActivePersonnel?.addEventListener("click", loadActivePersonnel);
 previousActivityPage?.addEventListener("click", async () => {
   if (activityHistoryPage === 0) return;
   activityHistoryPage -= 1;
@@ -1956,9 +2235,20 @@ closeAccessRequests?.addEventListener("click", () => accessRequestsManagement.cl
 closeRoleManagement?.addEventListener("click", () => roleManagement.close());
 closeAssignedRoles?.addEventListener("click", () => assignedRolesDialog.close());
 closeActivityHistory?.addEventListener("click", () => activityHistoryDialog.close());
+closeActivePersonnel?.addEventListener("click", () => activePersonnelDialog.close());
+closeStaffActionHistory?.addEventListener("click", () => staffActionHistoryDialog.close());
+staffDismissCancel?.addEventListener("click", () => staffDismissDialog.close());
+staffDismissConfirm?.addEventListener("click", confirmStaffDismissal);
 accessRequestsManagement?.addEventListener("close", () => toggleAccessRequests.setAttribute("aria-expanded", "false"));
 roleManagement?.addEventListener("close", () => toggleRoleManagement.setAttribute("aria-expanded", "false"));
 activityHistoryDialog?.addEventListener("close", () => toggleActivityHistory.setAttribute("aria-expanded", "false"));
+activePersonnelDialog?.addEventListener("close", () => toggleActivePersonnel.setAttribute("aria-expanded", "false"));
+staffDismissDialog?.addEventListener("close", () => {
+  pendingStaffDismissal = null;
+  staffDismissStatus.textContent = "";
+  staffDismissStatus.classList.remove("error");
+  staffDismissConfirm.disabled = false;
+});
 closeAccessCode?.addEventListener("click", () => accessCodeDialog.close());
 accessCodeDialog?.addEventListener("close", () => {
   accessCodeValue.value = "";

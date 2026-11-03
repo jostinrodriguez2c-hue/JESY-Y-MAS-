@@ -39,6 +39,16 @@
       </form>
     </div>
 
+    <form id="password-recovery-form" class="form-card login-card" hidden>
+      <p class="eyebrow">SEGURIDAD DE LA CUENTA</p>
+      <h1>Cambiar contraseña</h1>
+      <p class="login-description">Elige una contraseña nueva para tu cuenta.</p>
+      <label>Nueva contraseña<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
+      <label>Repite la contraseña<input type="password" name="password_confirmation" required minlength="6" autocomplete="new-password"></label>
+      <button class="btn btn-orange" type="submit">Guardar contraseña</button>
+      <p id="password-recovery-status" class="form-status" role="status" aria-live="polite"></p>
+    </form>
+
     <details class="form-card activation-card">
       <summary>¿Tienes un código? Activar acceso</summary>
       <form id="activation-form" class="activation-form">

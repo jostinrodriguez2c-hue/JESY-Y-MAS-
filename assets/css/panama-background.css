@@ -1413,18 +1413,18 @@ body.admin-body .dashboard-admin-actions .btn {
 }
 
 body.admin-body .role-management-panel {
-  border-color: #dce4ec;
-  background: linear-gradient(145deg, #fff, #f4f7fa);
+  border-color: #3b5068;
+  background: linear-gradient(145deg, #1a2c40, #122033);
   box-shadow: 0 12px 30px rgba(2, 10, 20, .16);
-  color: #23384e;
+  color: #edf4fb;
 }
 
 body.admin-body .role-management-panel h3 {
-  color: #14283f;
+  color: #f5f8fc;
 }
 
 body.admin-body .role-management-panel .muted {
-  color: #53677d;
+  color: #bcc9d8;
 }
 
 body.admin-body .role-management-panel .role-management-table {
@@ -1432,23 +1432,54 @@ body.admin-body .role-management-panel .role-management-table {
   border-spacing: 0;
 }
 
+body.admin-body .role-management-panel .requests-table-wrap {
+  border-color: #3b5068;
+  background: #142438;
+}
+
+body.admin-body .role-management-panel .role-management-table th {
+  border-color: #3b5068;
+  background: #20364d;
+  color: #e6eef7;
+}
+
 body.admin-body .role-management-panel .role-management-table tbody tr {
   transition: background-color .16s ease;
 }
 
 body.admin-body .role-management-panel .role-management-table tbody tr:hover {
-  background: #edf3f8;
+  background: #24394f;
 }
 
 body.admin-body .role-management-panel .role-management-table td {
-  color: #263c52;
+  color: #e3ebf3;
 }
 
 body.admin-body .role-management-panel .role-select {
-  border: 1px solid #d2dce6;
+  border: 1px solid #536a83;
   border-radius: 9px;
-  background-color: #fff;
-  color: #1b3046;
+  background-color: #17283b;
+  color: #f1f5fa;
+  color-scheme: dark;
+}
+
+body.admin-body .role-management-panel .role-editor-form > input,
+body.admin-body .role-management-panel .role-editor-form > select {
+  border-color: #536a83;
+  background: #17283b;
+  color: #f1f5fa;
+  color-scheme: dark;
+}
+
+body.admin-body .role-management-panel .role-permission-group {
+  border-color: #435a73;
+  background: rgba(13, 27, 42, .45);
+}
+
+body.admin-body .role-management-panel .role-permission-group legend,
+body.admin-body .role-management-panel .role-permission-option,
+body.admin-body .role-management-panel .role-management-user-roles {
+  color: #d0dbe7;
 }
 
 body.admin-body .role-management-nav .btn {
@@ -1600,6 +1631,39 @@ body.admin-body .role-account-status.is-pending {
 
 .role-management-panel h3 {
   margin: 0 0 16px;
+}
+
+.active-personnel-table {
+  min-width: 1180px;
+}
+
+.active-personnel-actions {
+  min-width: 360px;
+  white-space: normal;
+}
+
+.active-personnel-actions .btn {
+  margin: 3px;
+  white-space: normal;
+}
+
+.active-personnel-reason {
+  width: 220px;
+  min-height: 72px;
+  padding: 9px 10px;
+  border: 1px solid #536a83;
+  border-radius: 8px;
+  background: #17283b;
+  color: #f1f5fa;
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+
+.active-personnel-actions .btn {
+  min-height: 36px;
+  padding: 8px 11px;
+  font-size: 11px;
 }
 
 .role-editor-form {
